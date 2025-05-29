@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react",
+    "target": "esnext",
+    "moduleResolution": "node16",
+    "module": "node16",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": [
+        "./*"
+      ]
+    },
+    "types": [
+      "expo-router"
+    ]
+  },
+  "extends": "expo/tsconfig.base"
+}
