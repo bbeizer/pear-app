@@ -3,8 +3,8 @@
     "strict": true,
     "jsx": "react",
     "target": "esnext",
-    "moduleResolution": "node16",
-    "module": "node16",
+    "moduleResolution": "node",
+    "module": "esnext",
     "allowJs": true,
     "resolveJsonModule": true,
     "noEmit": true,
@@ -18,7 +18,8 @@
     },
     "types": [
       "expo-router"
-    ]
+    ],
+    "allowImportingTsExtensions": false
   },
   "extends": "expo/tsconfig.base"
 }

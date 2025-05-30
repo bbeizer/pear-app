@@ -1,10 +1,20 @@
+import { Buffer } from 'buffer';
+global.Buffer = Buffer;
+global.process = require('process');
+import 'react-native-url-polyfill/auto';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Signup from './screens/Signup';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>Hello from Pear 🍐</Text>
-        </View>
+        <NavigationContainer>
+            <Stack.Navigator>
+                <Stack.Screen name="Signup" component={Signup} />
+            </Stack.Navigator>
+        </NavigationContainer>
     );
 }
