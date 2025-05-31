@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { supabase } from '../lib/supabaseClient';
-
+import { RootStackParamList } from '../types';
 export default function Signup() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
