@@ -61,10 +61,11 @@ export default function App() {
                         <Stack.Screen name="Login" component={Login} />
                         <Stack.Screen name="Signup" component={Signup} />
                     </>
-                ) : !profileComplete ? (
-                    <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
                 ) : (
-                    <Stack.Screen name="Availability" component={Availability} />
+                    <>
+                        <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
+                        <Stack.Screen name="Availability" component={Availability} />
+                    </>
                 )}
             </Stack.Navigator>
         </NavigationContainer>

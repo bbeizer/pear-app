@@ -26,6 +26,7 @@ export default function Signup() {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Sign up for Pear 🍐</Text>
+            <Text style={styles.label}>Email</Text>
             <TextInput
                 placeholder="Email"
                 value={email}
@@ -34,6 +35,7 @@ export default function Signup() {
                 keyboardType="email-address"
                 style={styles.input}
             />
+            <Text style={styles.label}>Password</Text>
             <TextInput
                 placeholder="Password"
                 value={password}
@@ -47,13 +49,31 @@ export default function Signup() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', padding: 20 },
-    title: { fontSize: 24, marginBottom: 20, textAlign: 'center' },
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        padding: 20,
+        backgroundColor: '#fff',
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: '600',
+        marginBottom: 32,
+        textAlign: 'center',
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        marginBottom: 4,
+        marginTop: 12,
+    },
     input: {
         borderWidth: 1,
         borderColor: '#ccc',
-        padding: 10,
-        marginBottom: 12,
-        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
+        borderRadius: 10,
+        fontSize: 16,
+        backgroundColor: '#f9f9f9',
     },
 });

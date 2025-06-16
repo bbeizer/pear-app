@@ -1,96 +1,73 @@
 import React, { useState } from 'react';
-import { View, Text, Button, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Button, StyleSheet, Alert, Switch } from 'react-native';
 import { supabase } from '../lib/supabaseClient';
-import { RootStackParamList } from '../types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Availability'>;
 
-const TIME_SLOTS = [
-    '9:00 AM',
-    '10:00 AM',
-    '11:00 AM',
-    '1:00 PM',
-    '2:00 PM',
-    '3:00 PM',
-    '5:00 PM',
-    '6:00 PM',
-];
+const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const times = ['6-7pm', '7-8pm', '8-9pm'];
 
 export default function Availability({ navigation }: Props) {
-    const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [availability, setAvailability] = useState<Record<string, boolean>>({});
 
     const toggleSlot = (slot: string) => {
-        if (selectedSlots.includes(slot)) {
-            setSelectedSlots(selectedSlots.filter(s => s !== slot));
-        } else {
-            setSelectedSlots([...selectedSlots, slot]);
-        }
+        setAvailability((prev) => ({ ...prev, [slot]: !prev[slot] }));
     };
 
-    const handleSubmit = async () => {
-        setLoading(true);
-
+    const handleSave = async () => {
         const user = supabase.auth.user();
-        if (!user) {
-            alert('Not logged in');
-            setLoading(false);
-            return;
-        }
+        if (!user) return Alert.alert('Error', 'User not logged in');
 
         const { error } = await supabase
-            .from('availability')
-            .upsert({ user_id: user.id, slots: selectedSlots });
+            .from('profiles')
+            .update({ weekly_availability: availability })
+            .eq('id', user.id);
 
         if (error) {
-            alert('Error saving availability');
+            console.error(error);
+            Alert.alert('Error saving availability');
         } else {
-            alert('Availability saved!');
-            // navigation.navigate('NextScreen');
+            Alert.alert('Success', 'Availability saved!');
+            // Later: navigate to discovery/match screen
         }
-
-        setLoading(false);
     };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Select Your Availability</Text>
-            <FlatList
-                data={TIME_SLOTS}
-                keyExtractor={item => item}
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                        onPress={() => toggleSlot(item)}
-                        style={[
-                            styles.slot,
-                            selectedSlots.includes(item) && styles.selectedSlot,
-                        ]}
-                    >
-                        <Text style={styles.slotText}>{item}</Text>
-                    </TouchableOpacity>
-                )}
-                contentContainerStyle={{ gap: 8 }}
-            />
-            <Button title={loading ? 'Saving...' : 'Save'} onPress={handleSubmit} disabled={loading} />
+            <Text style={styles.header}>Set Your Weekly Availability</Text>
+            {days.map((day) => (
+                <View key={day} style={styles.row}>
+                    <Text style={styles.day}>{day}</Text>
+                    {times.map((time) => {
+                        const key = `${day}_${time}`;
+                        return (
+                            <View key={key} style={styles.slot}>
+                                <Text>{time}</Text>
+                                <Switch
+                                    value={!!availability[key]}
+                                    onValueChange={() => toggleSlot(key)}
+                                />
+                            </View>
+                        );
+                    })}
+                </View>
+            ))}
+            <Button title="Save Availability" onPress={handleSave} />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 20, flex: 1, backgroundColor: 'white' },
-    title: { fontSize: 22, marginBottom: 20, fontWeight: 'bold' },
+    container: { padding: 20, flex: 1 },
+    header: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
+    row: { marginBottom: 12 },
+    day: { fontWeight: '600', marginBottom: 4 },
     slot: {
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-    },
-    selectedSlot: {
-        backgroundColor: '#caf0f8',
-        borderColor: '#0077b6',
-    },
-    slotText: {
-        fontSize: 16,
+        marginBottom: 6,
     },
 });
