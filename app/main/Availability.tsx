@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, Alert, Switch } from 'react-native';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from 'lib/supabaseClient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from 'types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Availability'>;
 
@@ -17,22 +17,26 @@ export default function Availability({ navigation }: Props) {
     };
 
     const handleSave = async () => {
-        const user = supabase.auth.user();
-        if (!user) return Alert.alert('Error', 'User not logged in');
+        const { data, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !data?.user) {
+            console.error(userError || 'No user found');
+            return Alert.alert('Error', 'User not logged in');
+        }
 
         const { error } = await supabase
             .from('profiles')
             .update({ weekly_availability: availability })
-            .eq('id', user.id);
+            .eq('id', data.user.id);
 
         if (error) {
             console.error(error);
             Alert.alert('Error saving availability');
         } else {
             Alert.alert('Success', 'Availability saved!');
-            // Later: navigate to discovery/match screen
         }
     };
+
 
     return (
         <View style={styles.container}>

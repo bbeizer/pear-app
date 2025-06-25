@@ -2,6 +2,7 @@ export default () => ({
   expo: {
     name: "Pear App",
     slug: "pear-app",
+    scheme: "pear",
     version: "1.0.0",
     extra: {
       EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,

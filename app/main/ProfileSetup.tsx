@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, Alert
+    View, Text, TextInput, Button, Image, TouchableOpacity,
+    StyleSheet, ScrollView, FlatList, Alert
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../lib/supabaseClient';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'ProfileSetup'>;
+import { supabase } from 'lib/supabaseClient';
+import { User } from '@supabase/supabase-js';
+import { useRouter } from 'expo-router';
 
 const ALL_PROMPTS = [
     "I'm weirdly attracted to...",
@@ -25,15 +24,28 @@ const ALL_PROMPTS = [
     "The emoji that best describes me is...",
 ];
 
-export default function ProfileSetup({ navigation }: Props) {
+export default function ProfileSetup() {
+    const router = useRouter();
+
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
     const [images, setImages] = useState<(string | null)[]>(Array(6).fill(null));
     const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
     const [promptAnswers, setPromptAnswers] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
 
-    const user = supabase.auth.user();
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data, error } = await supabase.auth.getUser();
+            if (error) {
+                console.error("Supabase getUser error:", error);
+            } else {
+                setUser(data.user);
+            }
+        };
+        fetchUser();
+    }, []);
 
     const handleAddImage = async (index: number) => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -65,15 +77,14 @@ export default function ProfileSetup({ navigation }: Props) {
         setLoading(true);
         if (!user) return;
 
-        // Upload first image only for now (you can batch upload later)
         let avatarUrl: string | null = null;
         if (images[0]) {
-            const fileName = images[0]!.split('/').pop() || `profile-${Date.now()}.jpg`;
-            const blob = await (await fetch(images[0]!)).blob();
+            const fileName = images[0].split('/').pop() || `profile-${Date.now()}.jpg`;
+            const blob = await (await fetch(images[0])).blob();
             const { data, error } = await supabase.storage
                 .from('avatars')
                 .upload(`${user.id}/${fileName}`, blob, { upsert: true });
-            if (!error) avatarUrl = data?.Key || null;
+            if (!error) avatarUrl = data?.path || null;
         }
 
         const profileData = {
@@ -88,11 +99,7 @@ export default function ProfileSetup({ navigation }: Props) {
         };
 
         const { error: updateError } = await supabase.from('profiles').upsert(profileData);
-
-        if (!updateError) {
-            navigation.navigate('Availability');
-        }
-
+        if (!updateError) router.push('/main/Availability');
         setLoading(false);
     };
 

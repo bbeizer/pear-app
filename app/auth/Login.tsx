@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import { supabase } from '../lib/supabaseClient';
-import { RootStackParamList } from '../types';
+import { supabase } from 'lib/supabaseClient';
+import { RootStackParamList } from '../../types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -11,7 +11,7 @@ export default function Login({ navigation }: Props) {
     const [password, setPassword] = useState('');
 
     const handleLogin = async () => {
-        const { error } = await supabase.auth.signIn({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
             Alert.alert('Login Error', error.message);
         }
