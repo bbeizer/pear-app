@@ -1,77 +1,163 @@
-import React, { useState } from 'react';
-import { View, Text, Button, StyleSheet, Alert, Switch } from 'react-native';
-import { supabase } from 'lib/supabaseClient';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from 'types';
+import React, { useState, useRef } from 'react';
+import {
+    ScrollView,
+    View,
+    Text,
+    StyleSheet,
+    Pressable,
+    Button,
+} from 'react-native';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Availability'>;
+const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const hours = Array.from({ length: 26 }, (_, i) => {
+    const hour = 9 + Math.floor(i / 2);
+    const minute = i % 2 === 0 ? '00' : '30';
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = ((hour - 1) % 12) + 1;
+    return `${formattedHour}:${minute} ${suffix}`;
+});
 
-const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const times = ['6-7pm', '7-8pm', '8-9pm'];
+type AvailabilityMap = {
+    [key: string]: boolean;
+};
 
-export default function Availability({ navigation }: Props) {
-    const [availability, setAvailability] = useState<Record<string, boolean>>({});
+export default function AvailabilityGrid() {
+    const [selected, setSelected] = useState<AvailabilityMap>({});
+    const isDragging = useRef(false);
 
-    const toggleSlot = (slot: string) => {
-        setAvailability((prev) => ({ ...prev, [slot]: !prev[slot] }));
+    const toggleCell = (key: string) => {
+        setSelected(prev => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
     };
 
-    const handleSave = async () => {
-        const { data, error: userError } = await supabase.auth.getUser();
-
-        if (userError || !data?.user) {
-            console.error(userError || 'No user found');
-            return Alert.alert('Error', 'User not logged in');
-        }
-
-        const { error } = await supabase
-            .from('profiles')
-            .update({ weekly_availability: availability })
-            .eq('id', data.user.id);
-
-        if (error) {
-            console.error(error);
-            Alert.alert('Error saving availability');
-        } else {
-            Alert.alert('Success', 'Availability saved!');
-        }
+    const handleTouchMove = (key: string) => {
+        if (!isDragging.current) return;
+        setSelected(prev => ({
+            ...prev,
+            [key]: true,
+        }));
     };
 
+    const handleTouchStart = () => {
+        isDragging.current = true;
+    };
+
+    const handleTouchEnd = () => {
+        isDragging.current = false;
+    };
+
+    const handleSave = () => {
+        console.log('Selected Availability:', selected);
+        // Add Supabase update logic here if needed
+    };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.header}>Set Your Weekly Availability</Text>
-            {days.map((day) => (
-                <View key={day} style={styles.row}>
-                    <Text style={styles.day}>{day}</Text>
-                    {times.map((time) => {
-                        const key = `${day}_${time}`;
-                        return (
-                            <View key={key} style={styles.slot}>
-                                <Text>{time}</Text>
-                                <Switch
-                                    value={!!availability[key]}
-                                    onValueChange={() => toggleSlot(key)}
-                                />
+        <View style={styles.wrapper}>
+            <Text style={styles.title}>Set Your General Weekly Availability</Text>
+            <ScrollView horizontal>
+                <View onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+                    <View style={styles.headerRow}>
+                        <View style={styles.timeLabel} />
+                        {days.map(day => (
+                            <View key={day} style={styles.dayHeader}>
+                                <Text style={styles.headerText}>{day}</Text>
                             </View>
-                        );
-                    })}
+                        ))}
+                    </View>
+                    <ScrollView>
+                        {hours.map(time => (
+                            <View key={time} style={styles.row}>
+                                <View style={styles.timeLabel}>
+                                    <Text style={styles.timeText}>{time}</Text>
+                                </View>
+                                {days.map(day => {
+                                    const key = `${day}_${time}`;
+                                    const isSelected = selected[key];
+                                    return (
+                                        <Pressable
+                                            key={key}
+                                            onPress={() => toggleCell(key)}
+                                            onHoverIn={() => handleTouchMove(key)}
+                                            style={[
+                                                styles.cell,
+                                                isSelected && styles.selectedCell,
+                                            ]}
+                                        />
+                                    );
+                                })}
+                            </View>
+                        ))}
+                    </ScrollView>
                 </View>
-            ))}
-            <Button title="Save Availability" onPress={handleSave} />
+            </ScrollView>
+            <View style={styles.buttonWrapper}>
+                <Button title="Save Availability" onPress={handleSave} />
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 20, flex: 1 },
-    header: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
-    row: { marginBottom: 12 },
-    day: { fontWeight: '600', marginBottom: 4 },
-    slot: {
+    wrapper: {
+        flex: 1,
+        paddingTop: 40,
+        paddingBottom: 16,
+        backgroundColor: '#f8f8f8',
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '600',
+        textAlign: 'center',
+        marginBottom: 12,
+        marginTop: 12,
+    },
+    headerRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        paddingTop: 10,
+        marginBottom: 4,
+    },
+    dayHeader: {
+        width: 43,
+        height: 35,
+        justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 6,
+        backgroundColor: '#eee',
+        borderWidth: 0.5,
+        borderColor: '#ccc',
+    },
+    headerText: {
+        fontWeight: '600',
+        fontSize: 13,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    timeLabel: {
+        width: 65,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        paddingRight: 5,
+    },
+    timeText: {
+        fontSize: 12,
+        color: '#333',
+    },
+    cell: {
+        width: 43,
+        height: 40,
+        borderWidth: 0.5,
+        borderColor: '#ccc',
+        backgroundColor: '#fff',
+    },
+    selectedCell: {
+        backgroundColor: 'green',
+    },
+    buttonWrapper: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
     },
 });
