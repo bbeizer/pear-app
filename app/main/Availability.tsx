@@ -55,7 +55,7 @@ export default function AvailabilityGrid() {
 
     return (
         <View style={styles.wrapper}>
-            <Text style={styles.title}>Set Your General Weekly Availability</Text>
+            <Text style={styles.title}>General Weekly Availability</Text>
             <ScrollView horizontal>
                 <View onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
                     <View style={styles.headerRow}>

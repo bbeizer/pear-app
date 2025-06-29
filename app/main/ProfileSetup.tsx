@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: '600',
         textAlign: 'center',
+        marginTop: 40,
         marginBottom: 20,
     },
     sectionTitle: {
