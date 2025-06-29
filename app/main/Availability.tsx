@@ -151,10 +151,12 @@ const styles = StyleSheet.create({
         height: 40,
         borderWidth: 0.5,
         borderColor: '#ccc',
+        borderRadius: 8,
         backgroundColor: '#fff',
     },
     selectedCell: {
-        backgroundColor: 'green',
+        backgroundColor: '#34C759',
+        borderRadius: 8
     },
     buttonWrapper: {
         paddingHorizontal: 16,
