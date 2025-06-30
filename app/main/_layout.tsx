@@ -10,6 +10,7 @@ export default function MainLayout() {
                     ProfileSetup: 'person-circle-outline',
                     Availability: 'calendar-outline',
                     Pool: 'people-outline',
+                    Calander: 'calendar-outline'
                 } as const;
 
                 const iconName =
@@ -32,6 +33,7 @@ export default function MainLayout() {
             <Tabs.Screen name="ProfileSetup" options={{ title: 'Profile' }} />
             <Tabs.Screen name="Availability" options={{ title: 'Availability' }} />
             <Tabs.Screen name="Pool" options={{ title: 'Pool' }} />
+            <Tabs.Screen name="Calander" options={{ title: 'Calander' }} />
         </Tabs>
     );
 }
