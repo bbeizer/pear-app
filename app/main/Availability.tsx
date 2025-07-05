@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { supabase } from 'lib/supabaseClient';
 import {
     ScrollView,
     View,
@@ -48,10 +49,29 @@ export default function AvailabilityGrid() {
         isDragging.current = false;
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         console.log('Selected Availability:', selected);
-        // Add Supabase update logic here if needed
+
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user?.id;
+
+        if (!userId || sessionError) {
+            console.error('❌ Failed to get session:', sessionError);
+            return;
+        }
+
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ weekly_availability: selected }) // this assumes your column is type `json` or `jsonb`
+            .eq('id', userId);
+
+        if (updateError) {
+            console.error('❌ Failed to update availability:', updateError);
+        } else {
+            console.log('✅ Availability saved!');
+        }
     };
+
 
     return (
         <View style={styles.wrapper}>

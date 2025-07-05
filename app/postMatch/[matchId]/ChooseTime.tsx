@@ -1,67 +1,111 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabaseClient';
+import { getSupabaseWithAuth } from '../../../lib/supabaseWithAuth';
 
 export default function ChooseTime() {
     const { matchId } = useLocalSearchParams();
     const router = useRouter();
+
     const [overlapSlots, setOverlapSlots] = useState<string[]>([]);
+    const [otherUserSlots, setOtherUserSlots] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchOverlap = async () => {
-            const { data: match, error: matchErr } = await supabase
-                .from('matches')
-                .select('user1_id, user2_id')
-                .eq('id', matchId)
-                .single();
+            try {
+                if (!matchId || typeof matchId !== 'string') throw new Error('No matchId');
 
-            if (matchErr || !match) return;
+                const supabase = await getSupabaseWithAuth();
+                const { data: userRes, error: userErr } = await supabase.auth.getUser();
+                const uid = userRes?.user?.id;
+                if (userErr || !uid) throw new Error('Failed to fetch authenticated user');
 
-            const { data: avail1 } = await supabase
-                .from('availability')
-                .select('time_slot')
-                .eq('user_id', match.user1_id);
+                const { data: match, error: matchErr } = await supabase
+                    .from('matches')
+                    .select('user1_id, user2_id')
+                    .eq('id', matchId)
+                    .single();
+                if (matchErr || !match) throw new Error('Could not fetch match');
 
-            const { data: avail2 } = await supabase
-                .from('availability')
-                .select('time_slot')
-                .eq('user_id', match.user2_id);
+                const user1 = match.user1_id;
+                const user2 = match.user2_id;
+                const me = uid;
+                const them = me === user1 ? user2 : user1;
 
-            const user1Slots = avail1?.map((a) => a.time_slot) || [];
-            const user2Slots = avail2?.map((a) => a.time_slot) || [];
+                const { data: profiles, error: profilesErr } = await supabase
+                    .from('profiles')
+                    .select('id, weekly_availability')
+                    .in('id', [user1, user2]);
+                if (profilesErr || !profiles) throw new Error('Could not fetch profiles');
 
-            const overlap = user1Slots.filter((slot) => user2Slots.includes(slot));
-            setOverlapSlots(overlap);
-            setLoading(false);
+                const myProfile = profiles.find(p => p.id === me);
+                const theirProfile = profiles.find(p => p.id === them);
+
+                const mine: string[] = Array.isArray(myProfile?.weekly_availability)
+                    ? myProfile!.weekly_availability
+                    : [];
+                const theirs: string[] = Array.isArray(theirProfile?.weekly_availability)
+                    ? theirProfile!.weekly_availability
+                    : [];
+
+                const overlap = mine.filter(slot => theirs.includes(slot));
+                setOverlapSlots(overlap);
+                setOtherUserSlots(theirs);
+            } catch (err: any) {
+                console.error('❌ ChooseTime error:', err.message);
+                setError('Failed to load availability');
+            } finally {
+                setLoading(false);
+            }
         };
 
         fetchOverlap();
-    }, []);
+    }, [matchId]);
 
-    const handleTimeSelect = async (time: string) => {
+    const handleSelectTime = async (time: string) => {
+        const supabase = await getSupabaseWithAuth();
         const { error } = await supabase
             .from('matches')
-            .update({ scheduled_time: time, status: 'confirmed' })
+            .update({ proposed_time: time, status: 'proposed' })
             .eq('id', matchId);
 
-        if (!error) router.push('/main/Calander');
+        if (error) {
+            console.error('❌ Error updating time:', error.message);
+            setError('Failed to update selected time');
+            return;
+        }
+
+        router.push('/main/Calendar');
     };
 
     if (loading) return <ActivityIndicator style={{ marginTop: 50 }} />;
+    if (error) return <Text style={{ color: 'red', marginTop: 50 }}>{error}</Text>;
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Select a Time That Works</Text>
-            {overlapSlots.length === 0 ? (
-                <Text>No overlapping availability. Try again later.</Text>
+            <Text style={styles.title}>Pick a time to meet</Text>
+
+            {overlapSlots.length > 0 ? (
+                <>
+                    <Text style={styles.subtitle}>Mutual availability:</Text>
+                    {overlapSlots.map((slot, i) => (
+                        <TouchableOpacity key={i} style={styles.slot} onPress={() => handleSelectTime(slot)}>
+                            <Text style={styles.slotText}>{slot}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </>
             ) : (
-                overlapSlots.map((slot, idx) => (
-                    <TouchableOpacity key={idx} style={styles.slot} onPress={() => handleTimeSelect(slot)}>
-                        <Text style={styles.slotText}>{slot}</Text>
-                    </TouchableOpacity>
-                ))
+                <>
+                    <Text>No overlapping availability 😞</Text>
+                    <Text style={{ marginBottom: 10 }}>Pick a time the other person is free:</Text>
+                    {otherUserSlots.map((slot, i) => (
+                        <TouchableOpacity key={i} style={styles.slot} onPress={() => handleSelectTime(slot)}>
+                            <Text style={styles.slotText}>{slot}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </>
             )}
         </ScrollView>
     );
@@ -69,15 +113,17 @@ export default function ChooseTime() {
 
 const styles = StyleSheet.create({
     container: {
-        flexGrow: 1,
-        justifyContent: 'center',
+        padding: 20,
         alignItems: 'center',
-        padding: 24,
     },
     title: {
         fontSize: 22,
+        fontWeight: 'bold',
         marginBottom: 20,
-        fontWeight: '600',
+    },
+    subtitle: {
+        fontSize: 16,
+        marginBottom: 10,
     },
     slot: {
         padding: 14,
@@ -88,7 +134,7 @@ const styles = StyleSheet.create({
     },
     slotText: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: 16,
         textAlign: 'center',
     },
 });

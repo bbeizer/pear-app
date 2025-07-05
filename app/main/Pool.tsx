@@ -1,7 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, Alert } from 'react-native';
 import { supabase } from 'lib/supabaseClient';
+import { getSupabaseWithAuth } from 'lib/supabaseWithAuth';
 import { useRouter } from 'expo-router';
 
 export default function Pool() {
@@ -14,18 +14,20 @@ export default function Pool() {
         const fetchUserAndProfiles = async () => {
             const { data: userData, error: userError } = await supabase.auth.getUser();
             console.log('Current user ID:', userData?.user?.id);
+
             if (userError || !userData?.user) {
                 Alert.alert('Error', 'Failed to load user');
                 return;
             }
 
             const currentId = userData.user.id;
-            setUserId(userData.user.id);
+            setUserId(currentId);
 
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .neq('id', currentId);
+
             if (profileError) {
                 Alert.alert('Error', 'Failed to load profiles');
                 return;
@@ -41,35 +43,52 @@ export default function Pool() {
         const target = profiles[currentIndex];
         if (!userId || !target) return;
 
-        const { error } = await supabase.from('swipes').insert({
-            swiper_id: userId,
-            swipee_id: target.id,
-            liked,
-        });
+        console.log('🫱 Swiping on:', target.id);
+        console.log('👍 Liked:', liked);
 
-        if (error) {
-            console.error('Swipe error:', error);
+        const session = await supabase.auth.getSession();
+        const uid = session.data.session?.user?.id;
+        const token = session.data.session?.access_token;
+
+        if (!uid || !token) {
+            console.error('❌ No valid session or token');
             return;
         }
 
+        const authedSupabase = await getSupabaseWithAuth();
+
+        const { data: swipeData, error: swipeError } = await authedSupabase
+            .from('swipes')
+            .insert({ swiper_id: uid, swipee_id: target.id, liked })
+            .select();
+
+        if (swipeError) {
+            console.error('❌ Swipe insert error:', swipeError);
+            return;
+        }
+
+        console.log('✅ Swipe inserted:', swipeData);
+
         if (liked) {
-            const { data: mutualSwipe } = await supabase
-                .from('swipes')
+            const { data: match, error: matchError } = await authedSupabase
+                .from('matches')
                 .select('*')
-                .match({ swiper_id: target.id, swipee_id: userId, liked: true })
-                .single();
+                .or(`and(user1_id.eq.${uid},user2_id.eq.${target.id}),and(user1_id.eq.${target.id},user2_id.eq.${uid})`)
+                .maybeSingle();
 
-            if (mutualSwipe) {
-                await supabase.from('matches').insert({
-                    user1_id: userId,
-                    user2_id: target.id,
-                });
+            if (match) {
+                console.log('🎉 Redirecting to match flow:', match.id);
+                router.push(`postMatch/${match.id}/ChooseMeetType`);
+            } else {
+                console.log('🙅 No match found (yet)');
+            }
 
-                router.push('/postMatch/ChooseMeetType');
+            if (matchError) {
+                console.log('🧯 Match fetch error:', matchError);
             }
         }
 
-        setCurrentIndex(prev => prev + 1);
+        setCurrentIndex((prev) => prev + 1);
     };
 
     const currentProfile = profiles[currentIndex];

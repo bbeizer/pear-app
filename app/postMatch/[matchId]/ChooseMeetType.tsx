@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabaseClient';
+import { getSupabaseWithAuth } from '../../../lib/supabaseWithAuth';
 
 export default function ChooseMeetType() {
   const { matchId } = useLocalSearchParams();
@@ -12,24 +12,37 @@ export default function ChooseMeetType() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data?.user) {
-        setError('Failed to fetch user');
-        return;
+      try {
+        const authedSupabase = await getSupabaseWithAuth();
+        const { data, error } = await authedSupabase.auth.getUser();
+
+        if (error || !data?.user) {
+          setError('Failed to fetch user');
+          return;
+        }
+
+        setUserId(data.user.id);
+      } catch (err) {
+        console.error('Auth error:', err);
+        setError('Unexpected error during auth');
+      } finally {
+        setLoading(false);
       }
-      setUserId(data.user.id);
-      setLoading(false);
     };
+
     fetchUser();
   }, []);
 
   const handleSelect = async (choice: 'video' | 'in_person') => {
     if (!matchId || !userId) return;
 
-    const { error } = await supabase
+    const authedSupabase = await getSupabaseWithAuth();
+    const matchKey = await getUserMatchKey(userId, matchId as string);
+
+    const { error } = await authedSupabase
       .from('matches')
       .update({
-        [`${await getUserMatchKey(userId, matchId as string)}_mode_choice`]: choice,
+        [`${matchKey}_mode_choice`]: choice,
         status: 'pending',
       })
       .eq('id', matchId);
@@ -38,12 +51,18 @@ export default function ChooseMeetType() {
       console.error('Error updating choice:', error);
       setError('Could not update selection');
     } else {
-      router.push(`/postMatch/${matchId}/ChooseTime`); // proceed
+      router.push(`/postMatch/${matchId}/ChooseTime`);
     }
   };
 
   const getUserMatchKey = async (uid: string, matchId: string) => {
-    const { data, error } = await supabase.from('matches').select('user1_id, user2_id').eq('id', matchId).single();
+    const authedSupabase = await getSupabaseWithAuth();
+    const { data, error } = await authedSupabase
+      .from('matches')
+      .select('user1_id, user2_id')
+      .eq('id', matchId)
+      .single();
+
     if (error || !data) return 'user1';
     return data.user1_id === uid ? 'user1' : 'user2';
   };
@@ -60,6 +79,9 @@ export default function ChooseMeetType() {
 
       <TouchableOpacity style={styles.button} onPress={() => handleSelect('in_person')}>
         <Text style={styles.buttonText}>In Person</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', top: 50, left: 20 }}>
+        <Text style={{ fontSize: 16, color: 'blue' }}>{'<'} Back</Text>
       </TouchableOpacity>
 
       {error && <Text style={styles.error}>{error}</Text>}

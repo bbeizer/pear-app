@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { supabase } from 'lib/supabaseClient';
 import { RootStackParamList } from '../../types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+const router = useRouter();
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -44,7 +46,7 @@ export default function Login({ navigation }: Props) {
             <View style={styles.footer}>
                 <Text>
                     Don’t have an account?{' '}
-                    <Text style={styles.link} onPress={() => navigation.navigate('Signup')}>
+                    <Text style={styles.link} onPress={() => router.push('/auth/Signup')}>
                         Sign up
                     </Text>
                 </Text>

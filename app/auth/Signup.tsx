@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { supabase } from 'lib/supabaseClient';
+import { useRouter } from 'expo-router';
+const router = useRouter();
 
 export default function Signup() {
     const [email, setEmail] = useState('');
@@ -44,6 +46,10 @@ export default function Signup() {
                 style={styles.input}
             />
             <Button title={loading ? 'Signing up...' : 'Sign Up'} onPress={handleSignup} disabled={loading} />
+            <View style={{ marginTop: 20 }}>
+                <Text style={{ textAlign: 'center' }}>Already have an account?</Text>
+                <Button title="Go to Login" onPress={() => router.push('/auth/Login')} />
+            </View>
         </View>
     );
 }
