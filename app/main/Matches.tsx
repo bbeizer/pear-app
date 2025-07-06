@@ -32,19 +32,45 @@ export default function MatchesScreen() {
     }, []);
 
     const renderItem = ({ item }: { item: any }) => {
-        const partnerId =
-            userId === item.user1_id ? item.user2_id : item.user1_id;
+        const partnerId = userId === item.user1_id ? item.user2_id : item.user1_id;
+        const myKey = userId === item.user1_id ? 'user1' : 'user2';
+        const theirKey = userId === item.user1_id ? 'user2' : 'user1';
+
+        const myModeChoice = item[`${myKey}_mode_choice`];
+        const theirModeChoice = item[`${theirKey}_mode_choice`];
+
+        let nextStep = '';
+        if (!myModeChoice) {
+            nextStep = 'ChooseMeetType';
+        } else if (!item.proposed_time && myModeChoice === 'video') {
+            nextStep = 'ChooseTime';
+        } else if (item.proposed_time && item.status === 'proposed') {
+            nextStep = 'ConfirmDate';
+        } else {
+            nextStep = ''; // fully confirmed or fallback
+        }
+
+        const handlePress = () => {
+            if (nextStep) {
+                router.push(`/postMatch/${item.id}/${nextStep}`);
+            }
+        };
 
         return (
-            <TouchableOpacity
-                style={styles.card}
-                onPress={() => router.push(`/postMatch/${item.id}/ChooseMeetType`)}
-            >
+            <TouchableOpacity style={styles.card} onPress={handlePress} disabled={!nextStep}>
                 <Text style={styles.name}>Match with {partnerId}</Text>
                 <Text>Status: {item.status}</Text>
+                {nextStep ? (
+                    <Text style={{ color: '#6c63ff', marginTop: 5 }}>
+                        Continue: {nextStep.replace(/([A-Z])/g, ' $1')}
+                    </Text>
+                ) : (
+                    <Text style={{ color: 'gray', marginTop: 5 }}>No action needed</Text>
+                )}
             </TouchableOpacity>
         );
     };
+
 
 
     return (

@@ -5,35 +5,25 @@ import { supabase } from 'lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 
 export default function Index() {
-    const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = loading
-    const [checking, setChecking] = useState(true);
+    const [user, setUser] = useState<User | null | undefined>(undefined);
 
     useEffect(() => {
-        const handleAuth = async () => {
-            const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-                setUser(session?.user ?? null);
-                setChecking(false);
-            });
+        const fetchUser = async () => {
+            const { data, error } = await supabase.auth.getSession();
+            const user = data?.session?.user ?? null;
+            setUser(user);
 
-            try {
-                const { data, error } = await supabase.auth.getSession();
-                if (error) {
-                    console.error("Supabase error (getSession):", error);
-                }
+            if (error) {
+                console.error('Error fetching user:', error);
+                setUser(null);
+            } else {
                 setUser(data?.session?.user ?? null);
-            } catch (e) {
-                console.error("Unexpected Supabase error:", e);
-            } finally {
-                setChecking(false);
             }
-
-            return () => listener.subscription?.unsubscribe();
         };
-
-        handleAuth();
+        fetchUser();
     }, []);
 
-    if (checking || user === undefined) {
+    if (user === undefined) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" />
@@ -41,6 +31,5 @@ export default function Index() {
         );
     }
 
-    if (!user) return <Redirect href="/auth/Login" />;
-    return <Redirect href="/main/ProfileSetup" />;
+    return <Redirect href={user ? '/main/ProfileSetup' : '/auth/Login'} />;
 }

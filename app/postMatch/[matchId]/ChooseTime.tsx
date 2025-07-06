@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    ScrollView,
+    ActivityIndicator,
+    StyleSheet,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getSupabaseWithAuth } from '../../../lib/supabaseWithAuth';
+import { parseSlotToISO } from '../../../utils/availability_parser';
 
 export default function ChooseTime() {
-    const { matchId } = useLocalSearchParams();
+    const { matchId } = useLocalSearchParams<{ matchId: string }>();
     const router = useRouter();
 
     const [overlapSlots, setOverlapSlots] = useState<string[]>([]);
@@ -15,42 +23,46 @@ export default function ChooseTime() {
     useEffect(() => {
         const fetchOverlap = async () => {
             try {
-                if (!matchId || typeof matchId !== 'string') throw new Error('No matchId');
+                if (!matchId) throw new Error('No matchId');
 
                 const supabase = await getSupabaseWithAuth();
-                const { data: userRes, error: userErr } = await supabase.auth.getUser();
+                const {
+                    data: userRes,
+                    error: userErr,
+                } = await supabase.auth.getUser();
                 const uid = userRes?.user?.id;
-                if (userErr || !uid) throw new Error('Failed to fetch authenticated user');
+                if (userErr || !uid) throw new Error('Failed to get user');
 
                 const { data: match, error: matchErr } = await supabase
                     .from('matches')
                     .select('user1_id, user2_id')
                     .eq('id', matchId)
                     .single();
+
                 if (matchErr || !match) throw new Error('Could not fetch match');
 
-                const user1 = match.user1_id;
-                const user2 = match.user2_id;
                 const me = uid;
-                const them = me === user1 ? user2 : user1;
+                const them = me === match.user1_id ? match.user2_id : match.user1_id;
 
                 const { data: profiles, error: profilesErr } = await supabase
                     .from('profiles')
                     .select('id, weekly_availability')
-                    .in('id', [user1, user2]);
+                    .in('id', [me, them]);
+
                 if (profilesErr || !profiles) throw new Error('Could not fetch profiles');
 
-                const myProfile = profiles.find(p => p.id === me);
-                const theirProfile = profiles.find(p => p.id === them);
+                const myProfile = profiles.find((p) => p.id === me);
+                const theirProfile = profiles.find((p) => p.id === them);
 
                 const mine: string[] = Array.isArray(myProfile?.weekly_availability)
                     ? myProfile!.weekly_availability
                     : [];
+
                 const theirs: string[] = Array.isArray(theirProfile?.weekly_availability)
                     ? theirProfile!.weekly_availability
                     : [];
 
-                const overlap = mine.filter(slot => theirs.includes(slot));
+                const overlap = mine.filter((slot) => theirs.includes(slot));
                 setOverlapSlots(overlap);
                 setOtherUserSlots(theirs);
             } catch (err: any) {
@@ -65,19 +77,27 @@ export default function ChooseTime() {
     }, [matchId]);
 
     const handleSelectTime = async (time: string) => {
-        const supabase = await getSupabaseWithAuth();
-        const { error } = await supabase
-            .from('matches')
-            .update({ proposed_time: time, status: 'proposed' })
-            .eq('id', matchId);
+        try {
+            const supabase = await getSupabaseWithAuth();
+            const formatted = parseSlotToISO(time);
 
-        if (error) {
-            console.error('❌ Error updating time:', error.message);
-            setError('Failed to update selected time');
-            return;
+            const { data, error } = await supabase
+                .from('matches')
+                .update({ proposed_time: formatted, status: 'proposed' })
+                .eq('id', matchId);
+
+            if (error) {
+                console.error('❌ Error updating match:', error.message, error.details);
+                setError('Failed to update selected time');
+                return;
+            }
+
+            console.log('✅ Match updated:', data);
+            router.push('/main/Calendar');
+        } catch (err: any) {
+            console.error('❌ handleSelectTime crash:', err.message);
+            setError('Unexpected error occurred');
         }
-
-        router.push('/main/Calendar');
     };
 
     if (loading) return <ActivityIndicator style={{ marginTop: 50 }} />;

@@ -1,13 +1,14 @@
-import React, { useState, useRef } from 'react';
-import { supabase } from 'lib/supabaseClient';
+import React, { useEffect, useState, useRef } from 'react';
 import {
-    ScrollView,
     View,
     Text,
     StyleSheet,
-    Pressable,
     Button,
+    ScrollView,
+    Pressable,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { supabase } from '../../lib/supabaseClient';
 
 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const hours = Array.from({ length: 26 }, (_, i) => {
@@ -18,66 +19,70 @@ const hours = Array.from({ length: 26 }, (_, i) => {
     return `${formattedHour}:${minute} ${suffix}`;
 });
 
-type AvailabilityMap = {
-    [key: string]: boolean;
-};
-
-export default function AvailabilityGrid() {
-    const [selected, setSelected] = useState<AvailabilityMap>({});
+export default function Availability() {
+    const [selected, setSelected] = useState<Record<string, boolean>>({});
     const isDragging = useRef(false);
+    const dragMode = useRef<'select' | 'deselect' | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
 
-    const toggleCell = (key: string) => {
+    useEffect(() => {
+        const loadUserAvailability = async () => {
+            const { data: userData, error: userErr } = await supabase.auth.getUser();
+            const uid = userData?.user?.id;
+            if (!uid || userErr) return;
+            setUserId(uid);
+
+            const { data, error } = await supabase.from('profiles').select('weekly_availability').eq('id', uid).single();
+            if (!error && data?.weekly_availability) {
+                const restored = Object.fromEntries(data.weekly_availability.map((k: string) => [k, true]));
+                setSelected(restored);
+            }
+        };
+
+        loadUserAvailability();
+    }, []);
+
+    const toggleCell = (key: string, force?: boolean) => {
         setSelected(prev => ({
             ...prev,
-            [key]: !prev[key],
+            [key]: force !== undefined ? force : !prev[key],
         }));
+    };
+
+    const handleTouchStart = (key: string) => {
+        const currentlySelected = selected[key] ?? false;
+        dragMode.current = currentlySelected ? 'deselect' : 'select';
+        isDragging.current = true;
+        toggleCell(key, dragMode.current === 'select');
     };
 
     const handleTouchMove = (key: string) => {
-        if (!isDragging.current) return;
-        setSelected(prev => ({
-            ...prev,
-            [key]: true,
-        }));
-    };
-
-    const handleTouchStart = () => {
-        isDragging.current = true;
+        if (!isDragging.current || dragMode.current === null) return;
+        toggleCell(key, dragMode.current === 'select');
     };
 
     const handleTouchEnd = () => {
         isDragging.current = false;
+        dragMode.current = null;
     };
 
     const handleSave = async () => {
-        console.log('Selected Availability:', selected);
+        const activeSlots = Object.keys(selected).filter(k => selected[k]);
+        if (!userId) return;
 
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user?.id;
-
-        if (!userId || sessionError) {
-            console.error('❌ Failed to get session:', sessionError);
-            return;
-        }
-
-        const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ weekly_availability: selected }) // this assumes your column is type `json` or `jsonb`
-            .eq('id', userId);
-
-        if (updateError) {
-            console.error('❌ Failed to update availability:', updateError);
-        } else {
-            console.log('✅ Availability saved!');
+        const { error } = await supabase.from('profiles').update({ weekly_availability: activeSlots }).eq('id', userId);
+        if (!error) {
+            Toast.show({ type: 'success', text1: 'Availability saved!' });
         }
     };
 
+    const handleReset = () => setSelected({});
 
     return (
         <View style={styles.wrapper}>
-            <Text style={styles.title}>General Weekly Availability</Text>
+            <Text style={styles.title}>Weekly Availability</Text>
             <ScrollView horizontal>
-                <View onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+                <View>
                     <View style={styles.headerRow}>
                         <View style={styles.timeLabel} />
                         {days.map(day => (
@@ -86,7 +91,7 @@ export default function AvailabilityGrid() {
                             </View>
                         ))}
                     </View>
-                    <ScrollView>
+                    <ScrollView style={{ maxHeight: 600 }}>
                         {hours.map(time => (
                             <View key={time} style={styles.row}>
                                 <View style={styles.timeLabel}>
@@ -94,16 +99,14 @@ export default function AvailabilityGrid() {
                                 </View>
                                 {days.map(day => {
                                     const key = `${day}_${time}`;
-                                    const isSelected = selected[key];
+                                    const active = selected[key];
                                     return (
                                         <Pressable
                                             key={key}
-                                            onPress={() => toggleCell(key)}
+                                            style={[styles.cell, active && styles.selectedCell]}
+                                            onPressIn={() => handleTouchStart(key)}
                                             onHoverIn={() => handleTouchMove(key)}
-                                            style={[
-                                                styles.cell,
-                                                isSelected && styles.selectedCell,
-                                            ]}
+                                            onTouchEnd={handleTouchEnd}
                                         />
                                     );
                                 })}
@@ -112,9 +115,11 @@ export default function AvailabilityGrid() {
                     </ScrollView>
                 </View>
             </ScrollView>
-            <View style={styles.buttonWrapper}>
-                <Button title="Save Availability" onPress={handleSave} />
+            <View style={styles.buttons}>
+                <Button title="Save" onPress={handleSave} />
+                <Button title="Reset" onPress={handleReset} color="gray" />
             </View>
+            <Toast position="bottom" />
         </View>
     );
 }
@@ -123,20 +128,17 @@ const styles = StyleSheet.create({
     wrapper: {
         flex: 1,
         paddingTop: 40,
-        paddingBottom: 16,
-        backgroundColor: '#f8f8f8',
+        backgroundColor: '#fff',
     },
     title: {
         fontSize: 20,
-        fontWeight: '600',
+        fontWeight: 'bold',
         textAlign: 'center',
         marginBottom: 12,
-        marginTop: 12,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        paddingTop: 10,
         marginBottom: 4,
     },
     dayHeader: {
@@ -168,18 +170,18 @@ const styles = StyleSheet.create({
     },
     cell: {
         width: 43,
-        height: 40,
+        height: 38,
         borderWidth: 0.5,
         borderColor: '#ccc',
-        borderRadius: 8,
+        borderRadius: 6,
         backgroundColor: '#fff',
     },
     selectedCell: {
         backgroundColor: '#34C759',
-        borderRadius: 8
     },
-    buttonWrapper: {
-        paddingHorizontal: 16,
-        paddingTop: 12,
+    buttons: {
+        flexDirection: 'row',
+        justifyContent: 'space-evenly',
+        padding: 16,
     },
 });
