@@ -10,23 +10,45 @@ export default function Pool() {
     const [userId, setUserId] = useState<string | null>(null);
     const router = useRouter();
 
+
     useEffect(() => {
         const fetchUserAndProfiles = async () => {
             const { data: userData, error: userError } = await supabase.auth.getUser();
-            console.log('Current user ID:', userData?.user?.id);
-
-            if (userError || !userData?.user) {
+            const currentId = userData?.user?.id;
+            if (userError || !currentId) {
                 Alert.alert('Error', 'Failed to load user');
                 return;
             }
 
-            const currentId = userData.user.id;
             setUserId(currentId);
+
+            const { data: matches, error: matchError } = await supabase
+                .from('matches')
+                .select('user1_id, user2_id')
+                .or(`user1_id.eq.${currentId},user2_id.eq.${currentId}`);
+
+            if (matchError) {
+                Alert.alert('Error', 'Failed to load matches');
+                return;
+            }
+
+            const matchedIds = (matches ?? [])
+                .map(m => m.user1_id === currentId ? m.user2_id : m.user1_id)
+                .filter(Boolean);
+
+            const excludedIds = [currentId, ...matchedIds];
+
+
+            console.log("🔍 excludedIds:", excludedIds);
+            console.log("🔍 typeof excludedIds[0]:", typeof excludedIds[0]);
+            console.log("🔍 isArray:", Array.isArray(excludedIds));
 
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
-                .neq('id', currentId);
+                .filter('id', 'not.in', `(${excludedIds.join(',')})`);
+
+            console.log(profileData);
 
             if (profileError) {
                 Alert.alert('Error', 'Failed to load profiles');

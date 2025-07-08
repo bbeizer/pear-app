@@ -11,21 +11,47 @@ export default function MatchesScreen() {
     useEffect(() => {
         const fetchMatches = async () => {
             const { data: userData, error: userError } = await supabase.auth.getUser();
-
             if (userError || !userData?.user) {
                 console.error('No user session found');
                 return;
             }
 
-            const userId = userData.user.id;
+            const currentId = userData.user.id;
+            setUserId(currentId);
 
-            const { data, error } = await supabase
+            const { data: matches, error } = await supabase
                 .from('matches')
                 .select('*')
-                .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+                .or(`user1_id.eq.${currentId},user2_id.eq.${currentId}`);
 
-            if (error) console.error(error);
-            else setMatches(data);
+            if (error || !matches) {
+                console.error('Error fetching matches:', error);
+                return;
+            }
+
+            const partnerIds = matches.map(m =>
+                m.user1_id === currentId ? m.user2_id : m.user1_id
+            );
+
+            const { data: partnerProfiles, error: profileErr } = await supabase
+                .from('profiles')
+                .select('id, name')
+                .in('id', partnerIds);
+
+            if (profileErr || !partnerProfiles) {
+                console.error('Error fetching partner names:', profileErr);
+                return;
+            }
+
+            const nameMap = Object.fromEntries(partnerProfiles.map(p => [p.id, p.name]));
+
+            // attach name to each match
+            const enrichedMatches = matches.map(m => {
+                const partnerId = m.user1_id === currentId ? m.user2_id : m.user1_id;
+                return { ...m, partnerName: nameMap[partnerId] || 'Unknown' };
+            });
+
+            setMatches(enrichedMatches);
         };
 
         fetchMatches();
@@ -33,6 +59,7 @@ export default function MatchesScreen() {
 
     const renderItem = ({ item }: { item: any }) => {
         const partnerId = userId === item.user1_id ? item.user2_id : item.user1_id;
+        const partnerName = item.user
         const myKey = userId === item.user1_id ? 'user1' : 'user2';
         const theirKey = userId === item.user1_id ? 'user2' : 'user1';
 
@@ -44,7 +71,11 @@ export default function MatchesScreen() {
             nextStep = 'ChooseMeetType';
         } else if (!item.proposed_time && myModeChoice === 'video') {
             nextStep = 'ChooseTime';
-        } else if (item.proposed_time && item.status === 'proposed') {
+        } else if (
+            item.proposed_time &&
+            item.status === 'proposed' &&
+            item.proposed_by !== userId
+        ) {
             nextStep = 'ConfirmDate';
         } else {
             nextStep = ''; // fully confirmed or fallback
@@ -58,11 +89,13 @@ export default function MatchesScreen() {
 
         return (
             <TouchableOpacity style={styles.card} onPress={handlePress} disabled={!nextStep}>
-                <Text style={styles.name}>Match with {partnerId}</Text>
+                <Text style={styles.name}>Match with {item.partnerName}</Text>
                 <Text>Status: {item.status}</Text>
                 {nextStep ? (
                     <Text style={{ color: '#6c63ff', marginTop: 5 }}>
-                        Continue: {nextStep.replace(/([A-Z])/g, ' $1')}
+                        {nextStep === 'ConfirmDate'
+                            ? 'Time proposed — tap to confirm'
+                            : `Continue: ${nextStep.replace(/([A-Z])/g, ' $1')}`}
                     </Text>
                 ) : (
                     <Text style={{ color: 'gray', marginTop: 5 }}>No action needed</Text>

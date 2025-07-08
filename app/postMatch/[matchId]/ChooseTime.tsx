@@ -79,11 +79,22 @@ export default function ChooseTime() {
     const handleSelectTime = async (time: string) => {
         try {
             const supabase = await getSupabaseWithAuth();
+            const { data: userRes, error: userErr } = await supabase.auth.getUser();
+            const currentUserId = userRes?.user?.id;
+
+            if (userErr || !currentUserId) {
+                throw new Error('Could not get authenticated user');
+            }
+
             const formatted = parseSlotToISO(time);
 
             const { data, error } = await supabase
                 .from('matches')
-                .update({ proposed_time: formatted, status: 'proposed' })
+                .update({
+                    proposed_time: formatted,
+                    status: 'proposed',
+                    proposed_by: currentUserId,
+                })
                 .eq('id', matchId);
 
             if (error) {
@@ -99,6 +110,7 @@ export default function ChooseTime() {
             setError('Unexpected error occurred');
         }
     };
+
 
     if (loading) return <ActivityIndicator style={{ marginTop: 50 }} />;
     if (error) return <Text style={{ color: 'red', marginTop: 50 }}>{error}</Text>;
