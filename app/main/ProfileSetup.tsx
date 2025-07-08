@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from 'lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 
 const ALL_PROMPTS = [
     "I'm weirdly attracted to...",
@@ -36,15 +37,70 @@ export default function ProfileSetup() {
     const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
-        const fetchUser = async () => {
-            const { data, error } = await supabase.auth.getUser();
-            if (error) {
-                console.error("Supabase getUser error:", error);
-            } else {
-                setUser(data.user);
+        const registerForPush = async () => {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                Alert.alert('Permission denied', 'Unable to get push token');
+                return;
+            }
+
+            const tokenRes = await Notifications.getExpoPushTokenAsync();
+            const expoPushToken = tokenRes.data;
+            console.log('📲 Got Expo push token:', expoPushToken);
+
+            // Save to Supabase
+            const { data: userData, error } = await supabase.auth.getUser();
+            if (!error && userData?.user?.id) {
+                await supabase.from('profiles')
+                    .update({ push_token: expoPushToken })
+                    .eq('id', userData.user.id);
+                console.log('✅ Push token saved to Supabase');
             }
         };
-        fetchUser();
+
+        registerForPush();
+    }, []);
+
+    useEffect(() => {
+        const fetchUserAndRegisterPushToken = async () => {
+            const { data, error } = await supabase.auth.getUser();
+            if (error || !data.user) {
+                console.error("Supabase getUser error:", error);
+                return;
+            }
+
+            setUser(data.user);
+
+            // 🔔 Register push token
+            const { status } = await Notifications.requestPermissionsAsync();
+            if (status !== 'granted') {
+                console.warn('❌ Push notifications permission not granted');
+                return;
+            }
+
+            const token = (await Notifications.getExpoPushTokenAsync()).data;
+            console.log('📲 Got Expo push token:', token);
+
+            const { error: updateErr } = await supabase
+                .from('profiles')
+                .update({ push_token: token })
+                .eq('id', data.user.id);
+
+            if (updateErr) {
+                console.error('❌ Error saving push token:', updateErr.message);
+            } else {
+                console.log('✅ Push token saved to Supabase');
+            }
+        };
+
+        fetchUserAndRegisterPushToken();
     }, []);
 
     const handleAddImage = async (index: number) => {

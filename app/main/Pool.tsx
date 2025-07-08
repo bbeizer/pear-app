@@ -3,11 +3,14 @@ import { View, Text, StyleSheet, Button, Alert } from 'react-native';
 import { supabase } from 'lib/supabaseClient';
 import { getSupabaseWithAuth } from 'lib/supabaseWithAuth';
 import { useRouter } from 'expo-router';
+import ConfettiCannon from 'react-native-confetti-cannon';
+import * as Haptics from 'expo-haptics';
 
 export default function Pool() {
     const [profiles, setProfiles] = useState<any[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userId, setUserId] = useState<string | null>(null);
+    const [showConfetti, setShowConfetti] = useState(false);
     const router = useRouter();
 
 
@@ -100,7 +103,12 @@ export default function Pool() {
 
             if (match) {
                 console.log('🎉 Redirecting to match flow:', match.id);
-                router.push(`postMatch/${match.id}/ChooseMeetType`);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setShowConfetti(true);
+                setTimeout(() => setShowConfetti(false), 3000);
+                setTimeout(() => {
+                    router.push(`/postMatch/${match.id}/ChooseMeetType`);
+                }, 1500);
             } else {
                 console.log('🙅 No match found (yet)');
             }
@@ -126,6 +134,15 @@ export default function Pool() {
 
     return (
         <View style={styles.container}>
+            {showConfetti && (
+                <ConfettiCannon
+                    count={80}
+                    origin={{ x: 200, y: 0 }}
+                    fallSpeed={2500}
+                    explosionSpeed={400}
+                    fadeOut
+                />
+            )}
             <Text style={styles.title}>Discovery Pool</Text>
             <View style={styles.card}>
                 <Text style={styles.cardText}>{currentProfile.name}</Text>
