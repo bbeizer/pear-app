@@ -4,10 +4,13 @@ import {
     StyleSheet, ScrollView, FlatList, Alert
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from 'lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
+import { useSupabaseUser } from '../../lib/hooks/useSupabaseUser';
+import { useRegisterPushToken } from '../../lib/hooks/useRegisterPushToken';
+import type { Profile } from '../../types';
 
 const ALL_PROMPTS = [
     "I'm weirdly attracted to...",
@@ -27,6 +30,8 @@ const ALL_PROMPTS = [
 
 export default function ProfileSetup() {
     const router = useRouter();
+    const user = useSupabaseUser();
+    useRegisterPushToken(user?.id);
 
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
@@ -34,74 +39,6 @@ export default function ProfileSetup() {
     const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
     const [promptAnswers, setPromptAnswers] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
-
-    useEffect(() => {
-        const registerForPush = async () => {
-            const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            let finalStatus = existingStatus;
-
-            if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-            }
-
-            if (finalStatus !== 'granted') {
-                Alert.alert('Permission denied', 'Unable to get push token');
-                return;
-            }
-
-            const tokenRes = await Notifications.getExpoPushTokenAsync();
-            const expoPushToken = tokenRes.data;
-            console.log('📲 Got Expo push token:', expoPushToken);
-
-            // Save to Supabase
-            const { data: userData, error } = await supabase.auth.getUser();
-            if (!error && userData?.user?.id) {
-                await supabase.from('profiles')
-                    .update({ push_token: expoPushToken })
-                    .eq('id', userData.user.id);
-                console.log('✅ Push token saved to Supabase');
-            }
-        };
-
-        registerForPush();
-    }, []);
-
-    useEffect(() => {
-        const fetchUserAndRegisterPushToken = async () => {
-            const { data, error } = await supabase.auth.getUser();
-            if (error || !data.user) {
-                console.error("Supabase getUser error:", error);
-                return;
-            }
-
-            setUser(data.user);
-
-            // 🔔 Register push token
-            const { status } = await Notifications.requestPermissionsAsync();
-            if (status !== 'granted') {
-                console.warn('❌ Push notifications permission not granted');
-                return;
-            }
-
-            const token = (await Notifications.getExpoPushTokenAsync()).data;
-            console.log('📲 Got Expo push token:', token);
-
-            const { error: updateErr } = await supabase
-                .from('profiles')
-                .update({ push_token: token })
-                .eq('id', data.user.id);
-
-            if (updateErr) {
-                console.error('❌ Error saving push token:', updateErr.message);
-            } else {
-                console.log('✅ Push token saved to Supabase');
-            }
-        };
-
-        fetchUserAndRegisterPushToken();
-    }, []);
 
     const handleAddImage = async (index: number) => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -143,11 +80,11 @@ export default function ProfileSetup() {
             if (!error) avatarUrl = data?.path || null;
         }
 
-        const profileData = {
+        const profileData: Profile = {
             id: user.id,
             name,
             bio,
-            avatar_url: avatarUrl,
+            avatar_url: avatarUrl || 'default-avatar.svg',
             prompts: selectedPrompts.map(p => ({
                 question: p,
                 answer: promptAnswers[p] || '',

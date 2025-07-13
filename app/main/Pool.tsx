@@ -5,9 +5,11 @@ import { getSupabaseWithAuth } from 'lib/supabaseWithAuth';
 import { useRouter } from 'expo-router';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
+import { fetchAvailableProfiles, fetchUserMatches } from '../../lib/supabaseUtils';
+import type { Profile } from '../../types';
 
 export default function Pool() {
-    const [profiles, setProfiles] = useState<any[]>([]);
+    const [profiles, setProfiles] = useState<Profile[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userId, setUserId] = useState<string | null>(null);
     const [showConfetti, setShowConfetti] = useState(false);
@@ -25,15 +27,7 @@ export default function Pool() {
 
             setUserId(currentId);
 
-            const { data: matches, error: matchError } = await supabase
-                .from('matches')
-                .select('user1_id, user2_id')
-                .or(`user1_id.eq.${currentId},user2_id.eq.${currentId}`);
-
-            if (matchError) {
-                Alert.alert('Error', 'Failed to load matches');
-                return;
-            }
+            const matches = await fetchUserMatches(currentId);
 
             const matchedIds = (matches ?? [])
                 .map(m => m.user1_id === currentId ? m.user2_id : m.user1_id)
@@ -46,17 +40,9 @@ export default function Pool() {
             console.log("🔍 typeof excludedIds[0]:", typeof excludedIds[0]);
             console.log("🔍 isArray:", Array.isArray(excludedIds));
 
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .filter('id', 'not.in', `(${excludedIds.join(',')})`);
+            const profileData = await fetchAvailableProfiles(excludedIds);
 
             console.log(profileData);
-
-            if (profileError) {
-                Alert.alert('Error', 'Failed to load profiles');
-                return;
-            }
 
             setProfiles(profileData);
         };

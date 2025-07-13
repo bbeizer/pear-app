@@ -1,7 +1,3 @@
-import { getSupabaseWithAuth } from '../supabaseWithAuth';
-import { supabase } from '../supabaseClient';
-import { createClient } from '@supabase/supabase-js';
-
 jest.mock('../supabaseClient', () => ({
   supabase: {
     auth: {
@@ -24,6 +20,8 @@ describe('getSupabaseWithAuth', () => {
   });
 
   it('returns a client when session exists', async () => {
+    const { getSupabaseWithAuth } = require('../supabaseWithAuth');
+    const { supabase } = require('../supabaseClient');
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: { access_token: 'token' } } });
     const client = await getSupabaseWithAuth();
     expect(client).toBe('mockClient');
@@ -35,6 +33,8 @@ describe('getSupabaseWithAuth', () => {
   });
 
   it('throws if no session', async () => {
+    const { getSupabaseWithAuth } = require('../supabaseWithAuth');
+    const { supabase } = require('../supabaseClient');
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     await expect(getSupabaseWithAuth()).rejects.toThrow('No session available');
   });

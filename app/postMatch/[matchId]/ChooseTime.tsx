@@ -10,6 +10,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getSupabaseWithAuth } from '../../../lib/supabaseWithAuth';
 import { parseSlotToISO } from '../../../utils/availability_parser';
+import { findOverlapSlots } from '../../../lib/supabaseUtils';
+import { LoadingOrError } from '../../components/LoadingOrError';
 
 export default function ChooseTime() {
     const { matchId } = useLocalSearchParams<{ matchId: string }>();
@@ -24,45 +26,32 @@ export default function ChooseTime() {
         const fetchOverlap = async () => {
             try {
                 if (!matchId) throw new Error('No matchId');
-
                 const supabase = await getSupabaseWithAuth();
-                const {
-                    data: userRes,
-                    error: userErr,
-                } = await supabase.auth.getUser();
+                const { data: userRes, error: userErr } = await supabase.auth.getUser();
                 const uid = userRes?.user?.id;
                 if (userErr || !uid) throw new Error('Failed to get user');
-
                 const { data: match, error: matchErr } = await supabase
                     .from('matches')
                     .select('user1_id, user2_id')
                     .eq('id', matchId)
                     .single();
-
                 if (matchErr || !match) throw new Error('Could not fetch match');
-
                 const me = uid;
                 const them = me === match.user1_id ? match.user2_id : match.user1_id;
-
                 const { data: profiles, error: profilesErr } = await supabase
                     .from('profiles')
                     .select('id, weekly_availability')
                     .in('id', [me, them]);
-
                 if (profilesErr || !profiles) throw new Error('Could not fetch profiles');
-
                 const myProfile = profiles.find((p) => p.id === me);
                 const theirProfile = profiles.find((p) => p.id === them);
-
                 const mine: string[] = Array.isArray(myProfile?.weekly_availability)
                     ? myProfile!.weekly_availability
                     : [];
-
                 const theirs: string[] = Array.isArray(theirProfile?.weekly_availability)
                     ? theirProfile!.weekly_availability
                     : [];
-
-                const overlap = mine.filter((slot) => theirs.includes(slot));
+                const overlap = findOverlapSlots(mine, theirs);
                 setOverlapSlots(overlap);
                 setOtherUserSlots(theirs);
             } catch (err: any) {
@@ -72,7 +61,6 @@ export default function ChooseTime() {
                 setLoading(false);
             }
         };
-
         fetchOverlap();
     }, [matchId]);
 
@@ -112,31 +100,32 @@ export default function ChooseTime() {
     };
 
 
-    if (loading) return <ActivityIndicator style={{ marginTop: 50 }} />;
-    if (error) return <Text style={{ color: 'red', marginTop: 50 }}>{error}</Text>;
-
     return (
         <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Pick a time to meet</Text>
-
-            {overlapSlots.length > 0 ? (
+            <LoadingOrError loading={loading} error={error} />
+            {!loading && !error && (
                 <>
-                    <Text style={styles.subtitle}>Mutual availability:</Text>
-                    {overlapSlots.map((slot, i) => (
-                        <TouchableOpacity key={i} style={styles.slot} onPress={() => handleSelectTime(slot)}>
-                            <Text style={styles.slotText}>{slot}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </>
-            ) : (
-                <>
-                    <Text>No overlapping availability 😞</Text>
-                    <Text style={{ marginBottom: 10 }}>Pick a time the other person is free:</Text>
-                    {otherUserSlots.map((slot, i) => (
-                        <TouchableOpacity key={i} style={styles.slot} onPress={() => handleSelectTime(slot)}>
-                            <Text style={styles.slotText}>{slot}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    <Text style={styles.title}>Pick a time to meet</Text>
+                    {overlapSlots.length > 0 ? (
+                        <>
+                            <Text style={styles.subtitle}>Mutual availability:</Text>
+                            {overlapSlots.map((slot, i) => (
+                                <TouchableOpacity key={i} style={styles.slot} onPress={() => handleSelectTime(slot)}>
+                                    <Text style={styles.slotText}>{slot}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <Text>No overlapping availability 😞</Text>
+                            <Text style={{ marginBottom: 10 }}>Pick a time the other person is free:</Text>
+                            {otherUserSlots.map((slot, i) => (
+                                <TouchableOpacity key={i} style={styles.slot} onPress={() => handleSelectTime(slot)}>
+                                    <Text style={styles.slotText}>{slot}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </>
+                    )}
                 </>
             )}
         </ScrollView>
