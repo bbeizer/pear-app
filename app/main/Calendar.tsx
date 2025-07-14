@@ -73,42 +73,49 @@ export default function CalendarScreen() {
     if (loading) return <ActivityIndicator style={{ marginTop: 50 }} />;
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.header}>Your Upcoming Dates</Text>
-            {dates.map((match, idx) => (
-                <View key={idx} style={styles.card}>
-                    <Text style={styles.summary}>
-                        ✅ You have a{' '}
-                        <Text style={match.confirmed_mode === 'video' ? styles.video : styles.inperson}>
-                            {match.confirmed_mode}
-                        </Text>{' '}
-                        date with{' '}
-                        <Text style={{ fontWeight: '600' }}>{match.partnerName}</Text> at{' '}
-                        <Text style={{ fontWeight: '600' }}>{formatTime(match.confirmed_at)}</Text>
-                    </Text>
-                    <Text style={styles.date}>{formatDate(match.confirmed_at)}</Text>
-                </View>
-            ))}
-        </ScrollView>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ScrollView contentContainerStyle={styles.container} style={{ flexGrow: 1, width: '100%' }}>
+                <Text style={styles.header}>Your Upcoming Dates</Text>
+                {dates.map((match, idx) => (
+                    <View key={idx} style={styles.card}>
+                        <Text style={styles.summary}>
+                            ✅ You have a{' '}
+                            <Text style={match.confirmed_mode === 'video' ? styles.video : styles.inperson}>
+                                {match.confirmed_mode}
+                            </Text>{' '}
+                            date with{' '}
+                            <Text style={{ fontWeight: '600' }}>{match.partnerName}</Text> at{' '}
+                            <Text style={{ fontWeight: '600' }}>{match.confirmed_at ? formatTime(match.confirmed_at) : 'Unknown time'}</Text>
+                        </Text>
+                        <Text style={styles.date}>{match.confirmed_at ? formatDate(match.confirmed_at) : 'Unknown date'}</Text>
+                    </View>
+                ))}
+            </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        padding: 20,
+        flexGrow: 1,
         alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
     },
     header: {
         fontSize: 24,
         fontWeight: '700',
         marginBottom: 20,
+        textAlign: 'center',
     },
     card: {
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
-        width: '100%',
+        width: 320,
+        maxWidth: '100%',
+        alignSelf: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
