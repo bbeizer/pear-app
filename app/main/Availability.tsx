@@ -6,7 +6,6 @@ import {
     ScrollView,
     Pressable,
     TouchableOpacity,
-    ActivityIndicator,
     Dimensions,
     GestureResponderEvent,
 } from 'react-native';
@@ -25,13 +24,12 @@ const CELL_SIZE = 36;
 const HEADER_HEIGHT = 32;
 const LABEL_WIDTH = 54;
 
-export default function AvailabilityV2() {
+export default function Availability() {
     const [selected, setSelected] = useState<Record<string, boolean>>({});
     const isDragging = useRef(false);
     const dragMode = useRef<'select' | 'deselect' | null>(null);
     const [draggedKeys, setDraggedKeys] = useState<Set<string>>(new Set());
 
-    // Tap or drag to select/deselect
     const toggleCell = (key: string, force?: boolean) => {
         setSelected(prev => {
             const newVal = force !== undefined ? force : !prev[key];
@@ -75,7 +73,6 @@ export default function AvailabilityV2() {
         });
     };
 
-    // Quick select: tap day header to select/deselect column
     const handleColSelect = (colIdx: number) => {
         const allSelected = hours.every(time => selected[`${days[colIdx]}_${time}`]);
         setSelected(prev => {
@@ -88,7 +85,6 @@ export default function AvailabilityV2() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     };
 
-    // Quick select: tap time label to select/deselect row
     const handleRowSelect = (rowIdx: number) => {
         const allSelected = days.every(day => selected[`${day}_${hours[rowIdx]}`]);
         setSelected(prev => {
@@ -101,17 +97,16 @@ export default function AvailabilityV2() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     };
 
-    // Save/Reset (demo only)
     const handleSave = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         // Save logic here
     };
+
     const handleReset = () => {
         setSelected({});
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     };
 
-    // UI
     const getCellStyle = (active: boolean, pressed: boolean) => [
         styles.cell,
         active && styles.selectedCell,
@@ -121,50 +116,58 @@ export default function AvailabilityV2() {
     return (
         <View style={styles.wrapper}>
             <Text style={styles.title}>Weekly Availability</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.horizontalScroll}>
-                <View style={styles.gridOuter}>
-                    {/* Sticky day headers */}
-                    <View style={[styles.headerRow, { height: HEADER_HEIGHT }]}>
-                        <View style={[styles.timeLabel, { height: HEADER_HEIGHT }]} />
-                        {days.map((day, colIdx) => (
-                            <TouchableOpacity
-                                key={day}
-                                style={styles.dayHeader}
-                                onPress={() => handleColSelect(colIdx)}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.headerText}>{day}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                    <ScrollView style={styles.verticalScroll} showsVerticalScrollIndicator>
-                        {hours.map((time, rowIdx) => (
-                            <View key={time} style={styles.row}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator
+                contentContainerStyle={styles.horizontalScroll}
+            >
+                <View style={styles.gridWrapper}>
+                    <View style={styles.gridOuter}>
+                        {/* Sticky Headers */}
+                        <View style={[styles.headerRow, { height: HEADER_HEIGHT }]}>
+                            <View style={[styles.timeLabel, { height: HEADER_HEIGHT }]} />
+                            {days.map((day, colIdx) => (
                                 <TouchableOpacity
-                                    style={styles.timeLabel}
-                                    onPress={() => handleRowSelect(rowIdx)}
+                                    key={day}
+                                    style={styles.dayHeader}
+                                    onPress={() => handleColSelect(colIdx)}
                                     activeOpacity={0.7}
                                 >
-                                    <Text style={styles.timeText}>{time}</Text>
+                                    <Text style={styles.headerText}>{day}</Text>
                                 </TouchableOpacity>
-                                {days.map((day, colIdx) => {
-                                    const key = `${day}_${time}`;
-                                    const active = selected[key];
-                                    return (
-                                        <Pressable
-                                            key={key}
-                                            style={({ pressed }) => getCellStyle(active, pressed)}
-                                            onPressIn={() => handleCellPressIn(key)}
-                                            onPressOut={handleCellPressOut}
-                                            onResponderMove={handleGridTouchMove}
-                                            accessibilityLabel={`${day} at ${time} ${active ? 'selected' : 'not selected'}`}
-                                            accessibilityRole="button"
-                                        />
-                                    );
-                                })}
-                            </View>
-                        ))}
-                    </ScrollView>
+                            ))}
+                        </View>
+                        <ScrollView style={styles.verticalScroll} showsVerticalScrollIndicator>
+                            {hours.map((time, rowIdx) => (
+                                <View key={time} style={styles.row}>
+                                    <TouchableOpacity
+                                        style={styles.timeLabel}
+                                        onPress={() => handleRowSelect(rowIdx)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={styles.timeText}>{time}</Text>
+                                    </TouchableOpacity>
+                                    {days.map((day) => {
+                                        const key = `${day}_${time}`;
+                                        const active = selected[key];
+                                        return (
+                                            <Pressable
+                                                key={key}
+                                                style={({ pressed }) =>
+                                                    getCellStyle(active, pressed)
+                                                }
+                                                onPressIn={() => handleCellPressIn(key)}
+                                                onPressOut={handleCellPressOut}
+                                                onResponderMove={handleGridTouchMove}
+                                                accessibilityLabel={`${day} at ${time} ${active ? 'selected' : 'not selected'}`}
+                                                accessibilityRole="button"
+                                            />
+                                        );
+                                    })}
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
                 </View>
             </ScrollView>
             <View style={styles.buttons}>
@@ -193,10 +196,15 @@ const styles = StyleSheet.create({
         color: '#222',
     },
     horizontalScroll: {
-        alignItems: 'flex-start',
-        paddingLeft: 8,
-        paddingRight: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
         minWidth: '100%',
+        paddingVertical: 4,
+    },
+    gridWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 8,
     },
     gridOuter: {
         backgroundColor: '#fff',
@@ -207,7 +215,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 6,
         elevation: 2,
-        alignSelf: 'center',
     },
     headerRow: {
         flexDirection: 'row',
@@ -319,4 +326,4 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
     },
-}); 
+});
