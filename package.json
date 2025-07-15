@@ -11,28 +11,40 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/native": "^7.1.9",
     "@react-navigation/native-stack": "^7.3.13",
     "@supabase/supabase-js": "^2.50.2",
+    "@ungap/structured-clone": "^1.3.0",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^3.0.1",
+    "ajv-keywords": "^5.1.0",
+    "chrome-launcher": "^1.2.0",
     "expo": "^53.0.9",
+    "expo-config-plugins": "^0.1.2",
     "expo-dev-client": "~5.2.4",
     "expo-haptics": "~14.1.4",
     "expo-image-picker": "~16.1.4",
+    "expo-linking": "^7.1.7",
     "expo-notifications": "~0.31.4",
-    "expo-router": "5.1.0",
+    "expo-router": "^5.1.3",
     "expo-updates": "~0.28.17",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-native": "0.79.0",
+    "jest-validate": "^30.0.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-native": "0.79.5",
     "react-native-confetti-cannon": "^1.5.2",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-toast-message": "^2.3.3",
-    "react-native-url-polyfill": "^2.0.0"
+    "react-native-url-polyfill": "^2.0.0",
+    "react-test-renderer": "^19.0.0"
   },
   "devDependencies": {
+    "@babel/preset-flow": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/react-native": "^13.2.0",
@@ -41,6 +53,7 @@
     "@types/react-native": "^0.72.8",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "babel-jest": "^30.0.4",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.5",
@@ -50,9 +63,17 @@
     "eslint-plugin-react-native": "^5.0.0",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
+    "jest-expo": "^53.0.9",
+    "metro-react-native-babel-preset": "^0.77.0",
     "prettier": "^3.6.2",
+    "ts-jest": "^29.4.0",
     "react-test-renderer": "^19.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "router": {
+      "appRoot": "./app"
+    }
+  }
 }

@@ -13,9 +13,33 @@ export default function Login({ navigation }: Props) {
     const [password, setPassword] = useState('');
 
     const handleLogin = async () => {
+<<<<<<< HEAD
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
             Alert.alert('Login Error', error.message);
+=======
+        console.log('Attempting login with:', email);
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                console.log('Login error:', error.message);
+                Alert.alert('Login Error', error.message);
+            } else {
+                console.log('Login successful!');
+                Alert.alert('Login Success', 'You have successfully logged in!', [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            // Change this route if you want to go somewhere else after login
+                            router.replace('/main/ProfileSetup');
+                        },
+                    },
+                ]);
+            }
+        } catch (e) {
+            console.log('Unexpected error during login:', e);
+            Alert.alert('Unexpected Error', 'Something went wrong. Please try again.');
+>>>>>>> f4ef286 (improvements to availability + tests)
         }
     };
 

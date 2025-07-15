@@ -143,7 +143,7 @@ export function useAvailabilityGrid() {
             // Save to Supabase
             const { error } = await supabase
                 .from('profiles')
-                .upsert(payload);
+                .upsert(payload, { onConflict: 'id' });
 
             console.log('[handleSave] upsert error:', error);
 

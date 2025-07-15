@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+<<<<<<< HEAD
 import { supabase } from '../../lib/supabaseClient';
 import { Session } from '@supabase/supabase-js';
+=======
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+>>>>>>> f4ef286 (improvements to availability + tests)
 
 export default function MatchesScreen() {
     const [matches, setMatches] = useState<any[]>([]);
