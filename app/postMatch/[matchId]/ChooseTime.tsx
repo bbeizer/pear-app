@@ -134,28 +134,28 @@ export default function ChooseTime() {
 
 const styles = StyleSheet.create({
     container: {
-        padding: 20,
         alignItems: 'center',
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        marginBottom: 20,
-    },
-    subtitle: {
-        fontSize: 16,
-        marginBottom: 10,
+        padding: 20,
     },
     slot: {
-        padding: 14,
         backgroundColor: '#6c63ff',
         borderRadius: 10,
         marginVertical: 8,
+        padding: 14,
         width: '100%',
     },
     slotText: {
         color: '#fff',
         fontSize: 16,
         textAlign: 'center',
+    },
+    subtitle: {
+        fontSize: 16,
+        marginBottom: 10,
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 20,
     },
 });

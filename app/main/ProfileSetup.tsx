@@ -176,36 +176,39 @@ export default function ProfileSetup() {
 }
 
 const styles = StyleSheet.create({
+    bioInput: {
+        height: 80,
+    },
     container: {
+        backgroundColor: '#fff',
         padding: 20,
         paddingBottom: 60,
-        backgroundColor: '#fff',
     },
     header: {
         fontSize: 24,
         fontWeight: '600',
-        textAlign: 'center',
-        marginTop: 40,
         marginBottom: 20,
+        marginTop: 40,
+        textAlign: 'center',
     },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '500',
-        marginTop: 24,
-        marginBottom: 8,
+    imageSlot: {
+        alignItems: 'center',
+        aspectRatio: 4 / 5,
+        backgroundColor: '#eee',
+        borderRadius: 10,
+        justifyContent: 'center',
+        marginBottom: 10,
+        width: '30%',
     },
     input: {
-        borderWidth: 1,
+        backgroundColor: '#f9f9f9',
         borderColor: '#ccc',
         borderRadius: 10,
-        padding: 12,
+        borderWidth: 1,
+        color: '#000',
         fontSize: 16,
         marginBottom: 12,
-        color: '#000',
-        backgroundColor: '#f9f9f9',
-    },
-    bioInput: {
-        height: 80,
+        padding: 12,
     },
     photoGrid: {
         flexDirection: 'row',
@@ -213,40 +216,37 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: 20,
     },
-    imageSlot: {
-        width: '30%',
-        aspectRatio: 4 / 5,
-        backgroundColor: '#eee',
-        borderRadius: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    thumbnail: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 10,
-    },
     plus: {
-        fontSize: 32,
         color: '#999',
-    },
-    promptChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        backgroundColor: '#eee',
-        borderRadius: 20,
-        marginRight: 8,
-    },
-    promptChipSelected: {
-        backgroundColor: '#007AFF',
+        fontSize: 32,
     },
     promptBlock: {
         marginBottom: 16,
     },
+    promptChip: {
+        backgroundColor: '#eee',
+        borderRadius: 20,
+        marginRight: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    promptChipSelected: {
+        backgroundColor: '#007AFF',
+    },
     promptLabel: {
+        color: '#444',
         fontWeight: '500',
         marginBottom: 6,
-        color: '#444',
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '500',
+        marginBottom: 8,
+        marginTop: 24,
+    },
+    thumbnail: {
+        borderRadius: 10,
+        height: '100%',
+        width: '100%',
     },
 });

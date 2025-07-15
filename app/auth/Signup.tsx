@@ -56,16 +56,19 @@ export default function Signup() {
 
 const styles = StyleSheet.create({
     container: {
+        backgroundColor: '#fff',
         flex: 1,
         justifyContent: 'center',
         padding: 20,
-        backgroundColor: '#fff',
     },
-    title: {
-        fontSize: 28,
-        fontWeight: '600',
-        marginBottom: 32,
-        textAlign: 'center',
+    input: {
+        backgroundColor: '#f9f9f9',
+        borderColor: '#ccc',
+        borderRadius: 10,
+        borderWidth: 1,
+        fontSize: 16,
+        marginBottom: 8,
+        padding: 12,
     },
     label: {
         fontSize: 16,
@@ -73,13 +76,10 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         marginTop: 12,
     },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 12,
-        marginBottom: 8,
-        borderRadius: 10,
-        fontSize: 16,
-        backgroundColor: '#f9f9f9',
+    title: {
+        fontSize: 28,
+        fontWeight: '600',
+        marginBottom: 32,
+        textAlign: 'center',
     },
 });

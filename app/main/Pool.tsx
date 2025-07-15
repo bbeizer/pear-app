@@ -143,42 +143,42 @@ export default function Pool() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingTop: 60,
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        backgroundColor: '#fff',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 20,
+    actions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '80%',
     },
     card: {
-        width: '90%',
-        height: 400,
+        alignItems: 'center',
+        backgroundColor: '#f9f9f9',
+        borderColor: '#ccc',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#ccc',
-        backgroundColor: '#f9f9f9',
-        alignItems: 'center',
+        height: 400,
         justifyContent: 'center',
         marginBottom: 20,
         padding: 16,
+        width: '90%',
+    },
+    cardSub: {
+        color: '#666',
+        fontSize: 16,
+        marginTop: 10,
     },
     cardText: {
         fontSize: 22,
         fontWeight: '600',
     },
-    cardSub: {
-        fontSize: 16,
-        color: '#666',
-        marginTop: 10,
+    container: {
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        flex: 1,
+        justifyContent: 'flex-start',
+        paddingTop: 60,
     },
-    actions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '80%',
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
     },
 });

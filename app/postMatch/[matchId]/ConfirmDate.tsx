@@ -94,7 +94,7 @@ export default function ConfirmDate() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  container: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 24 },
   header: { fontSize: 22, fontWeight: '600', marginBottom: 20 },
   time: { fontSize: 18, marginBottom: 30 },
 });

@@ -119,14 +119,14 @@ export default function MatchesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20 },
-    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
     card: {
-        padding: 16,
-        borderWidth: 1,
         borderColor: '#ccc',
         borderRadius: 10,
+        borderWidth: 1,
         marginBottom: 12,
+        padding: 16,
     },
+    container: { flex: 1, padding: 20 },
     name: { fontSize: 18, fontWeight: '600' },
+    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
 });

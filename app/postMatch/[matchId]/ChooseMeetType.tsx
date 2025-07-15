@@ -90,22 +90,11 @@ export default function ChooseMeetType() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 22,
-    marginBottom: 32,
-    fontWeight: '600',
-  },
   button: {
-    padding: 16,
     backgroundColor: '#6c63ff',
     borderRadius: 10,
     marginVertical: 10,
+    padding: 16,
     width: '100%',
   },
   buttonText: {
@@ -113,8 +102,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
   },
+  container: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
   error: {
-    marginTop: 20,
     color: 'red',
+    marginTop: 20,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginBottom: 32,
   },
 });
