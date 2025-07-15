@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { GestureResponderEvent } from 'react-native';
 import { useHaptics } from './useHaptics';
+import { supabase } from '../supabaseClient';
 
 export const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const hours = Array.from({ length: 30 }, (_, i) => {
@@ -17,10 +18,42 @@ const LABEL_WIDTH = 54;
 
 export function useAvailabilityGrid() {
     const [selected, setSelected] = useState<Record<string, boolean>>({});
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const isDragging = useRef(false);
     const dragMode = useRef<'select' | 'deselect' | null>(null);
     const [draggedKeys, setDraggedKeys] = useState<Set<string>>(new Set());
     const haptics = useHaptics();
+
+    const loadAvailability = async () => {
+        try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) {
+                setIsLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('weekly_availability')
+                .eq('id', user.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                console.error('Error loading availability:', error);
+            } else if (data?.weekly_availability) {
+                setSelected(data.weekly_availability);
+            }
+        } catch (error) {
+            console.error('Error loading availability:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadAvailability();
+    }, []);
 
     const toggleCell = (key: string, force?: boolean) => {
         setSelected(prev => {
@@ -89,9 +122,44 @@ export function useAvailabilityGrid() {
         haptics.mediumImpact();
     };
 
-    const handleSave = () => {
-        haptics.successNotification();
-        // Save logic here
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            // Get current user
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            console.log('[handleSave] user:', user, 'userError:', userError);
+            if (userError || !user) {
+                throw new Error('User not authenticated');
+            }
+
+            // Prepare payload
+            const payload = {
+                id: user.id,
+                weekly_availability: selected,
+                updated_at: new Date().toISOString(),
+            };
+            console.log('[handleSave] upsert payload:', payload);
+
+            // Save to Supabase
+            const { error } = await supabase
+                .from('profiles')
+                .upsert(payload);
+
+            console.log('[handleSave] upsert error:', error);
+
+            if (error) {
+                throw error;
+            }
+
+            haptics.successNotification();
+            return { success: true };
+        } catch (error) {
+            console.error('[handleSave] Error saving availability:', error);
+            haptics.mediumImpact(); // Different haptic for error
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleReset = () => {
@@ -106,6 +174,8 @@ export function useAvailabilityGrid() {
 
     return {
         selected,
+        isSaving,
+        isLoading,
         handleCellPressIn,
         handleCellPressOut,
         handleGridTouchMove,

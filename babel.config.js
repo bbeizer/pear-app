@@ -1,18 +1,7 @@
-module.exports = function (api) {
-    api.cache(true);
-    return {
-        presets: ["babel-preset-expo"],
-        plugins: [
-            [
-                "module-resolver",
-                {
-                    extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
-                    alias: {
-                        "~": "./",
-                    },
-                },
-            ],
-            "react-native-reanimated/plugin",
-        ],
-    };
+module.exports = {
+    presets: [
+        'module:metro-react-native-babel-preset',
+        '@babel/preset-flow',
+        '@babel/preset-typescript',
+    ],
 };

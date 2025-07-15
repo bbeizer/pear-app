@@ -7,6 +7,8 @@ import {
     Pressable,
     TouchableOpacity,
     Dimensions,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useAvailabilityGrid, days, hours } from '../../lib/hooks/useAvailabilityGrid';
 import { useHaptics } from '../../lib/hooks/useHaptics';
@@ -19,6 +21,8 @@ const LABEL_WIDTH = 54;
 export default function Availability(): JSX.Element {
     const {
         selected,
+        isSaving,
+        isLoading,
         handleCellPressIn,
         handleCellPressOut,
         handleGridTouchMove,
@@ -32,6 +36,24 @@ export default function Availability(): JSX.Element {
 
     console.log('HOURS:', hours);
     console.log('DAYS:', days);
+
+    const onSavePress = async () => {
+        const result = await handleSave();
+        if (result.success) {
+            Alert.alert('Success!', 'Your availability has been saved.');
+        } else {
+            Alert.alert('Error', `Failed to save availability: ${result.error}`);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <View style={[styles.wrapper, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={colors.green} />
+                <Text style={[styles.title, { marginTop: 16 }]}>Loading availability...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.wrapper}>
@@ -97,8 +119,14 @@ export default function Availability(): JSX.Element {
                 </View>
             </ScrollView>
             <View style={styles.buttons}>
-                <TouchableOpacity style={styles.saveButton} onPress={() => { haptics.successNotification(); handleSave(); }}>
-                    <Text style={styles.saveButtonText}>Save</Text>
+                <TouchableOpacity
+                    style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                    onPress={onSavePress}
+                    disabled={isSaving}
+                >
+                    <Text style={styles.saveButtonText}>
+                        {isSaving ? 'Saving...' : 'Save'}
+                    </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.resetButton} onPress={() => { haptics.mediumImpact(); handleReset(); }}>
                     <Text style={styles.resetButtonText}>Reset</Text>
@@ -211,6 +239,9 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 4,
+    },
+    saveButtonDisabled: {
+        opacity: 0.7,
     },
     saveButtonText: {
         color: colors.white,
