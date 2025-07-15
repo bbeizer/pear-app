@@ -23,7 +23,6 @@
       "react-native"
     ],
     "allowImportingTsExtensions": false,
-    "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,

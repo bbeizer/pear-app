@@ -1,23 +1,14 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import { supabase } from 'lib/supabaseClient';
-import { RootStackParamList } from '../../types';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-const router = useRouter();
+import { supabase } from '../../lib/supabaseClient';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
-
-export default function Login({ navigation }: Props) {
+export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const router = useRouter();
 
     const handleLogin = async () => {
-<<<<<<< HEAD
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            Alert.alert('Login Error', error.message);
-=======
         console.log('Attempting login with:', email);
         try {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -39,7 +30,6 @@ export default function Login({ navigation }: Props) {
         } catch (e) {
             console.log('Unexpected error during login:', e);
             Alert.alert('Unexpected Error', 'Something went wrong. Please try again.');
->>>>>>> f4ef286 (improvements to availability + tests)
         }
     };
 

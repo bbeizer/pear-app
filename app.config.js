@@ -23,9 +23,20 @@ export default () => ({
         android: {
             package: "com.benbeizer.pearapp",
             adaptiveIcon: {
-                foregroundImage: './assets/adaptive-icon.png',
                 backgroundColor: "#ffffff",
             },
         },
         updates: {
-            url: "https://u.expo.dev/c11542fa-a3d5-46f1-86a3-
+            url: "https://u.expo.dev/c11542fa-a3d5-46f1-86a3-343e7a3414ac",
+        },
+        runtimeVersion: "1.0.0",
+        plugins: [
+            [
+                "expo-router",
+                {
+                    root: "./app",
+                },
+            ],
+        ],
+    },
+});
