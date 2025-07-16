@@ -14,11 +14,11 @@ export default function MatchesScreen() {
     useEffect(() => {
         const fetchMatches = async () => {
             const { data: userData, error: userError } = await supabase.auth.getUser();
+            console.log('userData:', userData, 'userError:', userError);
             if (userError || !userData?.user) {
                 console.error('No user session found');
                 return;
             }
-
             const currentId = userData.user.id;
             setUserId(currentId);
 
