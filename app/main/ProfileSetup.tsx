@@ -68,6 +68,9 @@ export default function ProfileSetup() {
     const [politicsDealBreakers, setPoliticsDealBreakers] = useState<string[]>([]);
     const [heightRangeDealBreaker, setHeightRangeDealBreaker] = useState<[number, number]>([0, HEIGHTS.length - 1]);
 
+    // Add validation state
+    const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
     if (user === undefined) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -131,19 +134,69 @@ export default function ProfileSetup() {
         }
     };
 
+    // Validation function
+    const validateProfile = () => {
+        const errors: string[] = [];
+
+        if (!name.trim()) errors.push('Name is required');
+        if (!bio.trim()) errors.push('Bio is required');
+        if (!gender) errors.push('Gender is required');
+        if (!sexuality) errors.push('Sexuality is required');
+        if (!age || parseInt(age) < 18 || parseInt(age) > 100) errors.push('Valid age (18-100) is required');
+        if (!height) errors.push('Height is required');
+        if (!images.some(img => img)) errors.push('At least one photo is required');
+        if (selectedPrompts.length === 0) errors.push('Please select at least one prompt');
+
+        // Check if all selected prompts have answers
+        const unansweredPrompts = selectedPrompts.filter(prompt => !promptAnswers[prompt]?.trim());
+        if (unansweredPrompts.length > 0) {
+            errors.push('Please answer all selected prompts');
+        }
+
+        setValidationErrors(errors);
+        return errors.length === 0;
+    };
+
     const handleSave = async () => {
+        // Validate before saving
+        if (!validateProfile()) {
+            Alert.alert('Please complete your profile', validationErrors.join('\n'));
+            return;
+        }
+
         setLoading(true);
         if (!user) return;
 
-        let avatarUrl: string | null = null;
-        if (images[0]) {
-            const fileName = images[0].split('/').pop() || `profile-${Date.now()}.jpg`;
-            const blob = await (await fetch(images[0])).blob();
-            const { data, error } = await supabase.storage
-                .from('avatars')
-                .upload(`${user.id}/${fileName}`, blob, { upsert: true });
-            if (!error) avatarUrl = data?.path || null;
+        // Upload all images and create photos array
+        const photos: { id: string; url: string; order: number; is_primary: boolean }[] = [];
+
+        for (let i = 0; i < images.length; i++) {
+            const imageUri = images[i];
+            if (imageUri) {
+                try {
+                    const fileName = `photo-${i}-${Date.now()}.jpg`;
+                    const blob = await (await fetch(imageUri)).blob();
+                    const { data, error } = await supabase.storage
+                        .from('avatars')
+                        .upload(`${user.id}/${fileName}`, blob, { upsert: true });
+
+                    if (!error && data) {
+                        const photoUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${data.path}`;
+                        photos.push({
+                            id: `photo-${i}`,
+                            url: photoUrl,
+                            order: i,
+                            is_primary: i === 0 // First photo is primary
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error uploading photo ${i}:`, error);
+                }
+            }
         }
+
+        // Use first photo as avatar_url for backward compatibility
+        const avatarUrl = photos.length > 0 ? photos[0].url : 'default-avatar.svg';
 
         const dealBreakers = {
             gender: genderDealBreakers.length > 0 ? genderDealBreakers : undefined,
@@ -153,6 +206,7 @@ export default function ProfileSetup() {
             politics: politicsDealBreakers.length > 0 ? politicsDealBreakers : undefined,
             heightRange: heightRangeDealBreaker,
         };
+
         const profileData: Profile = {
             id: user.id,
             name,
@@ -165,7 +219,8 @@ export default function ProfileSetup() {
             politics,
             height,
             dealBreakers,
-            avatar_url: avatarUrl || 'default-avatar.svg',
+            avatar_url: avatarUrl,
+            photos: photos.length > 0 ? photos : undefined,
             prompts: selectedPrompts.map(p => ({
                 question: p,
                 answer: promptAnswers[p] || '',
@@ -319,6 +374,27 @@ export default function ProfileSetup() {
         </TouchableOpacity>
     );
 
+    // Helper function to check if a field has an error
+    const hasError = (fieldName: string) => {
+        return validationErrors.some(error => error.toLowerCase().includes(fieldName.toLowerCase()));
+    };
+
+    // Enhanced input style with error state
+    const getInputStyle = (fieldName: string) => {
+        return [
+            styles.input,
+            hasError(fieldName) && styles.inputError
+        ];
+    };
+
+    // Enhanced field card style with error state
+    const getFieldCardStyle = (fieldName: string) => {
+        return [
+            styles.fieldCard,
+            hasError(fieldName) && styles.fieldCardError
+        ];
+    };
+
     return (
         <ScrollView contentContainerStyle={styles.container}>
             <Text style={styles.header}>Set up your profile 🍐</Text>
@@ -328,7 +404,7 @@ export default function ProfileSetup() {
                 placeholderTextColor="#888"
                 value={name}
                 onChangeText={setName}
-                style={styles.input}
+                style={getInputStyle('name')}
             />
             <TextInput
                 placeholder="Bio / Fun Fact"
@@ -336,7 +412,7 @@ export default function ProfileSetup() {
                 value={bio}
                 onChangeText={setBio}
                 multiline
-                style={[styles.input, styles.bioInput]}
+                style={getInputStyle('bio')}
             />
 
             <Text style={styles.sectionTitle}>Your Photos</Text>
@@ -397,7 +473,7 @@ export default function ProfileSetup() {
             <Text style={styles.sectionTitle}>About Me</Text>
 
             {/* Gender */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('gender')}>
                 <SelectRow
                     label="Gender"
                     value={gender}
@@ -408,7 +484,7 @@ export default function ProfileSetup() {
             </View>
 
             {/* Sexuality */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('sexuality')}>
                 <SelectRow
                     label="Sexuality"
                     value={sexuality}
@@ -419,14 +495,14 @@ export default function ProfileSetup() {
             </View>
 
             {/* Age */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('age')}>
                 <Text style={styles.fieldLabel}>Age</Text>
                 <TextInput
                     placeholder="Your age"
                     keyboardType="numeric"
                     value={age}
                     onChangeText={setAge}
-                    style={styles.input}
+                    style={getInputStyle('age')}
                 />
                 <Text style={styles.fieldLabel}>Preferred Age Range</Text>
                 <RangeSlider
@@ -438,7 +514,7 @@ export default function ProfileSetup() {
             </View>
 
             {/* Height */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('height')}>
                 <SelectRow
                     label="Height"
                     value={height}
@@ -449,7 +525,7 @@ export default function ProfileSetup() {
             </View>
 
             {/* Religion */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('religion')}>
                 <SelectRow
                     label="Religion"
                     value={religion}
@@ -460,7 +536,7 @@ export default function ProfileSetup() {
             </View>
 
             {/* Politics */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('politics')}>
                 <SelectRow
                     label="Politics"
                     value={politics}
@@ -475,7 +551,7 @@ export default function ProfileSetup() {
             <Text style={styles.sectionSubtitle}>Select options you do NOT want to match with</Text>
 
             {/* Religion Deal Breakers */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('religionDealBreakers')}>
                 <Text style={styles.fieldLabel}>Religion</Text>
                 <View style={styles.dealBreakerChipsContainer}>
                     {RELIGIONS.map(r => (
@@ -490,7 +566,7 @@ export default function ProfileSetup() {
             </View>
 
             {/* Politics Deal Breakers */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('politicsDealBreakers')}>
                 <Text style={styles.fieldLabel}>Politics</Text>
                 <View style={styles.dealBreakerChipsContainer}>
                     {POLITICS.map(p => (
@@ -505,7 +581,7 @@ export default function ProfileSetup() {
             </View>
 
             {/* Height Deal Breakers */}
-            <View style={styles.fieldCard}>
+            <View style={getFieldCardStyle('heightRangeDealBreaker')}>
                 <Text style={styles.fieldLabel}>Height Range</Text>
                 <HeightRangeSlider
                     value={heightRangeDealBreaker}
@@ -553,6 +629,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 12,
         padding: 12,
+    },
+    inputError: {
+        borderColor: '#d00',
+        borderWidth: 2,
     },
     photoGrid: {
         flexDirection: 'row',
@@ -610,6 +690,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.03,
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 2 },
+    },
+    fieldCardError: {
+        borderColor: '#d00',
+        borderWidth: 2,
     },
     pickerCompact: {
         backgroundColor: '#fff',

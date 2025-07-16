@@ -25,6 +25,12 @@ export interface Profile {
     height?: string[];
   };
   avatar_url?: string;
+  photos?: {
+    id: string;
+    url: string;
+    order: number;
+    is_primary: boolean;
+  }[];
   prompts?: { question: string; answer: string }[];
   weekly_availability?: string[];
   push_token?: string;
