@@ -5,15 +5,30 @@ export type RootStackParamList = {
     Availability: undefined;
 };
 
-export type Profile = {
+export interface Profile {
   id: string;
   name: string;
-  bio?: string;
+  bio: string;
+  gender?: string;
+  sexuality?: string;
+  age?: number;
+  ageRange?: [number, number];
+  religion?: string;
+  politics?: string;
+  height?: string;
+  dealBreakers?: {
+    gender?: string[];
+    sexuality?: string[];
+    ageRange?: [number, number];
+    religion?: string[];
+    politics?: string[];
+    height?: string[];
+  };
   avatar_url?: string;
   prompts?: { question: string; answer: string }[];
   weekly_availability?: string[];
   push_token?: string;
-};
+}
 
 export type Match = {
     id: string;

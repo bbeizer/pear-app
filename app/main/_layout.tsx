@@ -1,41 +1,46 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import LogoutButton from '../auth/Logout';
+import { View } from 'react-native';
 
 export default function MainLayout() {
     return (
-        <Tabs
-            screenOptions={({ route }: { route: { name: string } }) => {
-                const iconMap = {
-                    ProfileSetup: 'person-circle-outline',
-                    Availability: 'calendar-outline',
-                    Pool: 'people-outline',
-                    Calendar: 'calendar-outline',
-                    Matches: 'help-buoy-outline',
-                } as const;
+        <View style={{ flex: 1 }}>
+            <LogoutButton style={{ position: 'absolute', top: 40, right: 20, zIndex: 10 }} />
+            <Tabs
+                screenOptions={({ route }: { route: { name: string } }) => {
+                    const iconMap = {
+                        ProfileSetup: 'person-circle-outline',
+                        Availability: 'calendar-outline',
+                        Pool: 'people-outline',
+                        Calendar: 'calendar-outline',
+                        Matches: 'help-buoy-outline',
+                    } as const;
 
-                const iconName =
-                    iconMap[route.name as keyof typeof iconMap] ?? 'help-circle-outline';
+                    const iconName =
+                        iconMap[route.name as keyof typeof iconMap] ?? 'help-circle-outline';
 
-                return {
-                    tabBarIcon: ({
-                        color,
-                        size,
-                    }: {
-                        color: string;
-                        size: number;
-                    }) => <Ionicons name={iconName} size={size} color={color} />,
-                    tabBarActiveTintColor: '#000',
-                    tabBarInactiveTintColor: 'gray',
-                    headerShown: false,
-                };
-            }}
-        >
-            <Tabs.Screen name="ProfileSetup" options={{ title: 'Profile' }} />
-            <Tabs.Screen name="Availability" options={{ title: 'Availability' }} />
-            <Tabs.Screen name="Pool" options={{ title: 'Pool' }} />
-            <Tabs.Screen name="Calendar" options={{ title: 'Calendar' }} />
-            <Tabs.Screen name="Matches" options={{ title: 'Matches' }} />
-        </Tabs>
+                    return {
+                        tabBarIcon: ({
+                            color,
+                            size,
+                        }: {
+                            color: string;
+                            size: number;
+                        }) => <Ionicons name={iconName} size={size} color={color} />,
+                        tabBarActiveTintColor: '#000',
+                        tabBarInactiveTintColor: 'gray',
+                        headerShown: false,
+                    };
+                }}
+            >
+                <Tabs.Screen name="ProfileSetup" options={{ title: 'Profile' }} />
+                <Tabs.Screen name="Availability" options={{ title: 'Availability' }} />
+                <Tabs.Screen name="Pool" options={{ title: 'Pool' }} />
+                <Tabs.Screen name="Calendar" options={{ title: 'Calendar' }} />
+                <Tabs.Screen name="Matches" options={{ title: 'Matches' }} />
+            </Tabs>
+        </View>
     );
 }

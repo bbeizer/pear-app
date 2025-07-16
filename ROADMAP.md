@@ -37,6 +37,15 @@
 - [ ] Handle notifications/reminders for upcoming video chats
 - [ ] Ensure smooth transition from app to video chat and back
 
+## 7. Profile Data Model & UI Expansion (in progress)
+- [ ] Update Supabase `profiles` table:
+    - [ ] Add columns: gender, sexuality, age, age_range_min, age_range_max, religion, politics, deal_breakers (jsonb)
+- [ ] Update TypeScript `Profile` type/interface
+- [ ] Add new fields to profile setup UI
+- [ ] Add deal-breaker toggles for each field
+- [ ] Save and load new fields and deal-breakers from Supabase
+- [ ] Add validation for new fields
+
 ---
 
 **Next Steps:**
