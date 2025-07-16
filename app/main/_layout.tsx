@@ -11,7 +11,7 @@ export default function MainLayout() {
                     Availability: 'calendar-outline',
                     Pool: 'people-outline',
                     Calendar: 'calendar-outline',
-                    Matches: 'help-buoy-outline', // you can change this icon
+                    Matches: 'help-buoy-outline',
                 } as const;
 
                 const iconName =
