@@ -214,7 +214,8 @@ export default function ProfileSetup() {
             gender,
             sexuality,
             age: age ? parseInt(age) : undefined,
-            ageRange,
+            age_range_min: ageRange[0],
+            age_range_max: ageRange[1],
             religion,
             politics,
             height,
@@ -889,13 +890,13 @@ const styles = StyleSheet.create({
         borderRadius: 2,
     },
     multiSliderSelected: {
-        backgroundColor: '#007AFF',
+        backgroundColor: '#00C48C',
     },
     multiSliderUnselected: {
         backgroundColor: '#e0e0e0',
     },
     multiSliderMarker: {
-        backgroundColor: '#007AFF',
+        backgroundColor: '#00C48C',
         width: 20,
         height: 20,
         borderRadius: 10,
@@ -906,7 +907,7 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     multiSliderMarkerPressed: {
-        backgroundColor: '#0056b3',
+        backgroundColor: '#009973',
         transform: [{ scale: 1.2 }],
     },
 });

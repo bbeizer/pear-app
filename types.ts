@@ -12,14 +12,16 @@ export interface Profile {
   gender?: string;
   sexuality?: string;
   age?: number;
-  ageRange?: [number, number];
+  age_range_min?: number;
+  age_range_max?: number;
   religion?: string;
   politics?: string;
   height?: string;
   dealBreakers?: {
     gender?: string[];
     sexuality?: string[];
-    ageRange?: [number, number];
+    age_range_min?: number;
+    age_range_max?: number;
     religion?: string[];
     politics?: string[];
     height?: string[];

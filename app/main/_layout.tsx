@@ -1,13 +1,11 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import LogoutButton from '../auth/Logout';
 import { View } from 'react-native';
 
 export default function MainLayout() {
     return (
         <View style={{ flex: 1 }}>
-            <LogoutButton style={{ position: 'absolute', top: 40, right: 20, zIndex: 10 }} />
             <Tabs
                 screenOptions={({ route }: { route: { name: string } }) => {
                     const iconMap = {
