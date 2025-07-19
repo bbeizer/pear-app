@@ -6,6 +6,7 @@ import {
     Modal, Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { supabase } from '../../lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
@@ -20,10 +21,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 const GENDERS = ['Man', 'Woman', 'Non-binary', 'Other'];
 const SEXUALITIES = ['Straight', 'Gay', 'Lesbian', 'Bisexual', 'Asexual', 'Queer', 'Other'];
+const HEIGHTS = ['4\'0"', '4\'1"', '4\'2"', '4\'3"', '4\'4"', '4\'5"', '4\'6"', '4\'7"', '4\'8"', '4\'9"', '4\'10"', '4\'11"', '5\'0"', '5\'1"', '5\'2"', '5\'3"', '5\'4"', '5\'5"', '5\'6"', '5\'7"', '5\'8"', '5\'9"', '5\'10"', '5\'11"', '6\'0"', '6\'1"', '6\'2"', '6\'3"', '6\'4"', '6\'5"', '6\'6"', '6\'7"', '6\'8"', '6\'9"', '6\'10"', '6\'11"', '7\'0"'];
 const RELIGIONS = ['None', 'Christian', 'Jewish', 'Muslim', 'Hindu', 'Buddhist', 'Spiritual', 'Other'];
 const POLITICS = ['Liberal', 'Moderate', 'Conservative', 'Other'];
-const HEIGHTS = ['4\'0"', '4\'1"', '4\'2"', '4\'3"', '4\'4"', '4\'5"', '4\'6"', '4\'7"', '4\'8"', '4\'9"', '4\'10"', '4\'11"', '5\'0"', '5\'1"', '5\'2"', '5\'3"', '5\'4"', '5\'5"', '5\'6"', '5\'7"', '5\'8"', '5\'9"', '5\'10"', '5\'11"', '6\'0"', '6\'1"', '6\'2"', '6\'3"', '6\'4"', '6\'5"', '6\'6"', '6\'7"', '6\'8"', '6\'9"', '6\'10"', '6\'11"', '7\'0"'];
-
+const DATING_INTENTIONS = ['Long-term relationship', 'Short-term relationship', 'Casual dating', 'Friendship', 'Marriage', 'Not sure yet'];
+const RELATIONSHIP_TYPES = ['Monogamous', 'Non-monogamous', 'Polyamorous', 'Open relationship', 'Not sure yet'];
+const DRINKING_FREQUENCY = ['Never', 'Rarely', 'Socially', 'Often', 'Very often'];
+const DRUGS_FREQUENCY = ['Never', 'Rarely', 'Socially', 'Often', 'Very often'];
 
 const ALL_PROMPTS = [
     "I'm weirdly attracted to...",
@@ -49,27 +53,76 @@ export default function ProfileSetup() {
     // All useState and other hooks must be declared before any return
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
-    const [images, setImages] = useState<(string | null)[]>(Array(6).fill(null));
+    const [images, setImages] = useState<(string | null)[]>(Array(7).fill(null));
     const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
     const [promptAnswers, setPromptAnswers] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
     const [gender, setGender] = useState('');
     const [sexuality, setSexuality] = useState('');
     const [age, setAge] = useState('');
-    const [ageRange, setAgeRange] = useState<[number, number]>([18, 99]);
+
     const [religion, setReligion] = useState('');
     const [politics, setPolitics] = useState('');
     const [height, setHeight] = useState('');
+    const [datingIntentions, setDatingIntentions] = useState('');
+    const [relationshipType, setRelationshipType] = useState('');
+    const [drinkingFrequency, setDrinkingFrequency] = useState('');
+    const [drugsFrequency, setDrugsFrequency] = useState('');
+
+    // Location state
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('');
+    const [distancePreference, setDistancePreference] = useState<number>(25); // Default 25 miles
+    const [locationPermission, setLocationPermission] = useState<boolean>(false);
 
     // Deal breaker state - moved to top with other hooks
-    const [genderDealBreakers, setGenderDealBreakers] = useState<string[]>([]);
-    const [ageRangeDealBreaker, setAgeRangeDealBreaker] = useState<[number, number]>([18, 99]);
-    const [religionDealBreakers, setReligionDealBreakers] = useState<string[]>([]);
-    const [politicsDealBreakers, setPoliticsDealBreakers] = useState<string[]>([]);
-    const [heightRangeDealBreaker, setHeightRangeDealBreaker] = useState<[number, number]>([0, HEIGHTS.length - 1]);
+
 
     // Add validation state
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+    // Location functions
+    const requestLocationPermission = async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+            setLocationPermission(true);
+            return true;
+        } else {
+            Alert.alert('Location Permission', 'Location access is needed to find nearby matches.');
+            return false;
+        }
+    };
+
+    const getCurrentLocation = async () => {
+        try {
+            const hasPermission = await requestLocationPermission();
+            if (!hasPermission) return;
+
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            setLatitude(location.coords.latitude);
+            setLongitude(location.coords.longitude);
+
+            // Reverse geocode to get city and state
+            const geocode = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            });
+
+            if (geocode.length > 0) {
+                const address = geocode[0];
+                setCity(address.city || '');
+                setState(address.region || '');
+            }
+        } catch (error) {
+            console.error('Error getting location:', error);
+            Alert.alert('Location Error', 'Could not get your current location. You can enter it manually.');
+        }
+    };
 
     if (user === undefined) {
         return (
@@ -79,34 +132,7 @@ export default function ProfileSetup() {
         );
     }
 
-    // Helper functions
-    const toggleDealBreaker = (option: string, currentBreakers: string[], setBreakers: (breakers: string[]) => void) => {
-        if (currentBreakers.includes(option)) {
-            setBreakers(currentBreakers.filter(b => b !== option));
-        } else {
-            setBreakers([...currentBreakers, option]);
-        }
-    };
 
-    // Get sexuality deal breaker options based on user's sexuality and gender
-    const getSexualityDealBreakerOptions = () => {
-        if (!gender || !sexuality) return [];
-
-        // If straight, only show opposite gender
-        if (sexuality === 'Straight') {
-            return gender === 'Man' ? ['Man'] : ['Woman'];
-        }
-        // If gay, only show same gender
-        if (sexuality === 'Gay') {
-            return gender === 'Man' ? ['Woman'] : ['Man'];
-        }
-        // If lesbian, only show women
-        if (sexuality === 'Lesbian') {
-            return ['Man'];
-        }
-        // For bisexual, asexual, queer, other - no restrictions
-        return [];
-    };
 
     const handleAddImage = async (index: number) => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -147,6 +173,11 @@ export default function ProfileSetup() {
         if (!images.some(img => img)) errors.push('At least one photo is required');
         if (selectedPrompts.length === 0) errors.push('Please select at least one prompt');
 
+        // Location validation (optional but recommended)
+        if (!latitude || !longitude) {
+            errors.push('Please enable location access to find nearby matches');
+        }
+
         // Check if all selected prompts have answers
         const unansweredPrompts = selectedPrompts.filter(prompt => !promptAnswers[prompt]?.trim());
         if (unansweredPrompts.length > 0) {
@@ -169,6 +200,7 @@ export default function ProfileSetup() {
 
         // Upload all images and create photos array
         const photos: { id: string; url: string; order: number; is_primary: boolean }[] = [];
+        let firstPhotoUrl = 'default-avatar.svg';
 
         for (let i = 0; i < images.length; i++) {
             const imageUri = images[i];
@@ -188,6 +220,11 @@ export default function ProfileSetup() {
                             order: i,
                             is_primary: i === 0 // First photo is primary
                         });
+
+                        // Set first photo as avatar_url
+                        if (i === 0) {
+                            firstPhotoUrl = photoUrl;
+                        }
                     }
                 } catch (error) {
                     console.error(`Error uploading photo ${i}:`, error);
@@ -195,17 +232,7 @@ export default function ProfileSetup() {
             }
         }
 
-        // Use first photo as avatar_url for backward compatibility
-        const avatarUrl = photos.length > 0 ? photos[0].url : 'default-avatar.svg';
 
-        const dealBreakers = {
-            gender: genderDealBreakers.length > 0 ? genderDealBreakers : undefined,
-            sexuality: getSexualityDealBreakerOptions().length > 0 ? getSexualityDealBreakerOptions() : undefined,
-            ageRange: ageRangeDealBreaker,
-            religion: religionDealBreakers.length > 0 ? religionDealBreakers : undefined,
-            politics: politicsDealBreakers.length > 0 ? politicsDealBreakers : undefined,
-            heightRange: heightRangeDealBreaker,
-        };
 
         const profileData: Profile = {
             id: user.id,
@@ -214,13 +241,22 @@ export default function ProfileSetup() {
             gender,
             sexuality,
             age: age ? parseInt(age) : undefined,
-            age_range_min: ageRange[0],
-            age_range_max: ageRange[1],
+
             religion,
             politics,
             height,
-            dealBreakers,
-            avatar_url: avatarUrl,
+            dating_intentions: datingIntentions || undefined,
+            relationship_type: relationshipType || undefined,
+            drinking_frequency: drinkingFrequency || undefined,
+            drugs_frequency: drugsFrequency || undefined,
+            // Location data
+            latitude: latitude || undefined,
+            longitude: longitude || undefined,
+            city: city || undefined,
+            state: state || undefined,
+            distance_preference: distancePreference,
+
+            avatar_url: firstPhotoUrl,
             photos: photos.length > 0 ? photos : undefined,
             prompts: selectedPrompts.map(p => ({
                 question: p,
@@ -295,85 +331,9 @@ export default function ProfileSetup() {
         );
     };
 
-    // Improved range slider using multi-slider
-    const RangeSlider = ({
-        min,
-        max,
-        value,
-        onValueChange,
-        style = {}
-    }: {
-        min: number;
-        max: number;
-        value: [number, number];
-        onValueChange: (value: [number, number]) => void;
-        style?: any;
-    }) => {
-        return (
-            <View style={[styles.rangeSliderContainer, style]}>
-                <MultiSlider
-                    values={value}
-                    min={min}
-                    max={max}
-                    step={1}
-                    onValuesChange={(values) => onValueChange([values[0], values[1]])}
-                    selectedStyle={styles.multiSliderSelected}
-                    unselectedStyle={styles.multiSliderUnselected}
-                    containerStyle={styles.multiSliderContainer}
-                    trackStyle={styles.multiSliderTrack}
-                    markerStyle={styles.multiSliderMarker}
-                    pressedMarkerStyle={styles.multiSliderMarkerPressed}
-                />
-                <View style={styles.rangeSliderLabels}>
-                    <Text style={styles.rangeSliderLabel}>{value[0]}</Text>
-                    <Text style={styles.rangeSliderLabel}>{value[1]}</Text>
-                </View>
-            </View>
-        );
-    };
 
-    // Height range slider for deal breakers
-    const HeightRangeSlider = ({
-        value,
-        onValueChange,
-        style = {}
-    }: {
-        value: [number, number];
-        onValueChange: (value: [number, number]) => void;
-        style?: any;
-    }) => {
-        return (
-            <View style={[styles.rangeSliderContainer, style]}>
-                <MultiSlider
-                    values={value}
-                    min={0}
-                    max={HEIGHTS.length - 1}
-                    step={1}
-                    onValuesChange={(values) => onValueChange([values[0], values[1]])}
-                    selectedStyle={styles.multiSliderSelected}
-                    unselectedStyle={styles.multiSliderUnselected}
-                    containerStyle={styles.multiSliderContainer}
-                    trackStyle={styles.multiSliderTrack}
-                    markerStyle={styles.multiSliderMarker}
-                    pressedMarkerStyle={styles.multiSliderMarkerPressed}
-                />
-                <View style={styles.rangeSliderLabels}>
-                    <Text style={styles.rangeSliderLabel}>{HEIGHTS[value[0]]}</Text>
-                    <Text style={styles.rangeSliderLabel}>{HEIGHTS[value[1]]}</Text>
-                </View>
-            </View>
-        );
-    };
 
-    // Deal breaker chip component
-    const DealBreakerChip = ({ label, selected, onToggle }: { label: string; selected: boolean; onToggle: () => void }) => (
-        <TouchableOpacity
-            style={[styles.dealBreakerChip, selected && styles.dealBreakerChipSelected]}
-            onPress={onToggle}
-        >
-            <Text style={[styles.dealBreakerChipText, selected && styles.dealBreakerChipTextSelected]}>{label}</Text>
-        </TouchableOpacity>
-    );
+
 
     // Helper function to check if a field has an error
     const hasError = (fieldName: string) => {
@@ -419,11 +379,23 @@ export default function ProfileSetup() {
             <Text style={styles.sectionTitle}>Your Photos</Text>
             <View style={styles.photoGrid}>
                 {images.map((uri, idx) => (
-                    <TouchableOpacity key={idx} onPress={() => handleAddImage(idx)} style={styles.imageSlot}>
+                    <TouchableOpacity
+                        key={idx}
+                        onPress={() => handleAddImage(idx)}
+                        style={[
+                            styles.imageSlot,
+                            idx === 0 && styles.firstImageSlot // Make first photo bigger
+                        ]}
+                    >
                         {uri ? (
                             <Image source={{ uri }} style={styles.thumbnail} />
                         ) : (
                             <Text style={styles.plus}>＋</Text>
+                        )}
+                        {idx === 0 && (
+                            <View style={styles.primaryPhotoBadge}>
+                                <Text style={styles.primaryPhotoText}>Primary</Text>
+                            </View>
                         )}
                     </TouchableOpacity>
                 ))}
@@ -505,13 +477,7 @@ export default function ProfileSetup() {
                     onChangeText={setAge}
                     style={getInputStyle('age')}
                 />
-                <Text style={styles.fieldLabel}>Preferred Age Range</Text>
-                <RangeSlider
-                    min={18}
-                    max={99}
-                    value={ageRange}
-                    onValueChange={setAgeRange}
-                />
+
             </View>
 
             {/* Height */}
@@ -547,51 +513,101 @@ export default function ProfileSetup() {
                 />
             </View>
 
-            {/* Deal Breakers Section */}
-            <Text style={styles.sectionTitle}>Deal Breakers</Text>
-            <Text style={styles.sectionSubtitle}>Select options you do NOT want to match with</Text>
-
-            {/* Religion Deal Breakers */}
-            <View style={getFieldCardStyle('religionDealBreakers')}>
-                <Text style={styles.fieldLabel}>Religion</Text>
-                <View style={styles.dealBreakerChipsContainer}>
-                    {RELIGIONS.map(r => (
-                        <DealBreakerChip
-                            key={r}
-                            label={r}
-                            selected={religionDealBreakers.includes(r)}
-                            onToggle={() => toggleDealBreaker(r, religionDealBreakers, setReligionDealBreakers)}
-                        />
-                    ))}
-                </View>
-            </View>
-
-            {/* Politics Deal Breakers */}
-            <View style={getFieldCardStyle('politicsDealBreakers')}>
-                <Text style={styles.fieldLabel}>Politics</Text>
-                <View style={styles.dealBreakerChipsContainer}>
-                    {POLITICS.map(p => (
-                        <DealBreakerChip
-                            key={p}
-                            label={p}
-                            selected={politicsDealBreakers.includes(p)}
-                            onToggle={() => toggleDealBreaker(p, politicsDealBreakers, setPoliticsDealBreakers)}
-                        />
-                    ))}
-                </View>
-            </View>
-
-            {/* Height Deal Breakers */}
-            <View style={getFieldCardStyle('heightRangeDealBreaker')}>
-                <Text style={styles.fieldLabel}>Height Range</Text>
-                <HeightRangeSlider
-                    value={heightRangeDealBreaker}
-                    onValueChange={setHeightRangeDealBreaker}
+            {/* Dating Intentions */}
+            <View style={getFieldCardStyle('datingIntentions')}>
+                <SelectRow
+                    label="Dating Intentions"
+                    value={datingIntentions}
+                    options={DATING_INTENTIONS}
+                    onSelect={setDatingIntentions}
+                    placeholder="What are you looking for?"
                 />
-                <Text style={styles.dealBreakerDesc}>Only show matches within this height range</Text>
             </View>
 
-            <Button title={loading ? 'Saving...' : 'Save Profile'} onPress={handleSave} disabled={loading} />
+            {/* Relationship Type */}
+            <View style={getFieldCardStyle('relationshipType')}>
+                <SelectRow
+                    label="Relationship Type"
+                    value={relationshipType}
+                    options={RELATIONSHIP_TYPES}
+                    onSelect={setRelationshipType}
+                    placeholder="What type of relationship?"
+                />
+            </View>
+
+            {/* Drinking Frequency */}
+            <View style={getFieldCardStyle('drinkingFrequency')}>
+                <SelectRow
+                    label="Drinking Frequency"
+                    value={drinkingFrequency}
+                    options={DRINKING_FREQUENCY}
+                    onSelect={setDrinkingFrequency}
+                    placeholder="How often do you drink?"
+                />
+            </View>
+
+            {/* Drugs Frequency */}
+            <View style={getFieldCardStyle('drugsFrequency')}>
+                <SelectRow
+                    label="Drugs Frequency"
+                    value={drugsFrequency}
+                    options={DRUGS_FREQUENCY}
+                    onSelect={setDrugsFrequency}
+                    placeholder="How often do you use drugs?"
+                />
+            </View>
+
+            {/* Location Section */}
+            <Text style={styles.sectionTitle}>Location</Text>
+            <Text style={styles.sectionSubtitle}>Help us find nearby matches</Text>
+
+            {/* Current Location */}
+            <View style={getFieldCardStyle('location')}>
+                <Text style={styles.fieldLabel}>Current Location</Text>
+                <TouchableOpacity
+                    style={styles.locationButton}
+                    onPress={getCurrentLocation}
+                >
+                    <Ionicons name="location" size={20} color="#00C48C" />
+                    <Text style={styles.locationButtonText}>
+                        {latitude && longitude ? 'Location Updated' : 'Get Current Location'}
+                    </Text>
+                </TouchableOpacity>
+                {latitude && longitude && (
+                    <Text style={styles.locationText}>
+                        📍 {city && state ? `${city}, ${state}` : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`}
+                    </Text>
+                )}
+            </View>
+
+            {/* Distance Preference */}
+            <View style={getFieldCardStyle('distancePreference')}>
+                <Text style={styles.fieldLabel}>Distance Preference</Text>
+                <Text style={styles.distanceValue}>{distancePreference.toFixed(1)} miles</Text>
+                <Slider
+                    style={styles.distanceSlider}
+                    minimumValue={1}
+                    maximumValue={100}
+                    value={distancePreference}
+                    onValueChange={(val) => setDistancePreference(Math.round(val * 10) / 10)}
+                    minimumTrackTintColor="#00C48C"
+                    maximumTrackTintColor="#E0E0E0"
+                    step={0.1}
+                />
+                <Text style={styles.dealBreakerDesc}>Show me people within this distance</Text>
+            </View>
+
+
+
+            <TouchableOpacity
+                style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={loading}
+            >
+                <Text style={styles.saveButtonText}>
+                    {loading ? 'Saving...' : 'Save Profile'}
+                </Text>
+            </TouchableOpacity>
         </ScrollView>
     );
 }
@@ -614,12 +630,32 @@ const styles = StyleSheet.create({
     },
     imageSlot: {
         alignItems: 'center',
-        aspectRatio: 4 / 5,
+        aspectRatio: 1, // Make them square instead of tall rectangles
         backgroundColor: '#eee',
         borderRadius: 10,
         justifyContent: 'center',
-        marginBottom: 10,
+        marginBottom: 4,
         width: '30%',
+        position: 'relative',
+    },
+    firstImageSlot: {
+        width: '100%', // Make first photo full width
+        aspectRatio: 16 / 9, // Wider aspect ratio for primary photo
+        marginBottom: 4,
+    },
+    primaryPhotoBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: '#00C48C',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    primaryPhotoText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
     },
     input: {
         backgroundColor: '#f9f9f9',
@@ -639,7 +675,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 16,
+        gap: 4,
+        height: 275,
     },
     plus: {
         color: '#999',
@@ -667,7 +705,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '500',
         marginBottom: 8,
-        marginTop: 24,
+        marginTop: 8,
     },
     thumbnail: {
         borderRadius: 10,
@@ -720,6 +758,41 @@ const styles = StyleSheet.create({
     },
     rangeSliderContainer: {
         marginVertical: 10,
+    },
+    rangeSliderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    rangeSliderButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 8,
+    },
+    rangeSliderButton: {
+        backgroundColor: '#00C48C',
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    rangeSliderButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    rangeSliderButtonDisabled: {
+        backgroundColor: '#ccc',
+    },
+    rangeSliderButtonTextDisabled: {
+        color: '#999',
+    },
+    rangeSliderValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#00C48C',
     },
     rangeSliderTrack: {
         height: 4,
@@ -909,5 +982,55 @@ const styles = StyleSheet.create({
     multiSliderMarkerPressed: {
         backgroundColor: '#009973',
         transform: [{ scale: 1.2 }],
+    },
+    // Location styles
+    locationButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+        padding: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e9ecef',
+        marginBottom: 8,
+    },
+    locationButtonText: {
+        marginLeft: 8,
+        fontSize: 16,
+        color: '#00C48C',
+        fontWeight: '500',
+    },
+    locationText: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 4,
+    },
+    distanceValue: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#00C48C',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    distanceSlider: {
+        width: '100%',
+        height: 40,
+    },
+    saveButton: {
+        backgroundColor: '#00C48C',
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 20,
+        marginBottom: 20,
+    },
+    saveButtonDisabled: {
+        backgroundColor: '#ccc',
+    },
+    saveButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
     },
 });

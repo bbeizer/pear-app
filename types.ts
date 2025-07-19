@@ -17,6 +17,16 @@ export interface Profile {
   religion?: string;
   politics?: string;
   height?: string;
+  // Location fields
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  state?: string;
+  distance_preference?: number; // in miles
+  dating_intentions?: string;
+  relationship_type?: string;
+  drinking_frequency?: string;
+  drugs_frequency?: string;
   dealBreakers?: {
     gender?: string[];
     sexuality?: string[];
