@@ -1,120 +1,103 @@
+
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
-import type { Profile } from '../../types';
+import type { Profile, Match } from '../../types';
+import { useHaptics } from '../../lib/hooks/useHaptics';
+import { fetchUserMatches } from '../../lib/supabaseUtils';
+import MatchModal from '../components/MatchModal';
 
-interface IncomingSwipe {
-    id: string;
-    swiper_id: string;
-    swipee_id: string;
-    liked: boolean;
-    created_at: string;
-    meeting_type?: 'in-person' | 'video';
-    suggested_activity?: string;
-    suggested_venue?: string;
-    swiper_profile: Profile;
-}
-
-export default function LikesScreen() {
-    const [incomingSwipes, setIncomingSwipes] = useState<IncomingSwipe[]>([]);
+export default function MatchesScreen() {
+    const [matches, setMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+    const [modalVisible, setModalVisible] = useState(false);
     const router = useRouter();
+    const { lightImpact } = useHaptics();
 
     useEffect(() => {
-        fetchIncomingSwipes();
+        fetchMatches();
     }, []);
 
-    const fetchIncomingSwipes = async () => {
+    const fetchMatches = async () => {
         try {
             const { data: userData } = await supabase.auth.getUser();
             if (!userData?.user) return;
 
             const userId = userData.user.id;
+            const userMatches = await fetchUserMatches(userId);
 
-            // Get all swipes where this user is the swipee (was swiped on)
-            const { data: swipes, error } = await supabase
-                .from('swipes')
-                .select(`
-                    *,
-                    swiper_profile:profiles!swiper_id(*)
-                `)
-                .eq('swipee_id', userId)
-                .eq('liked', true)
-                .order('created_at', { ascending: false });
+            // Get profiles for the other users in each match
+            const matchesWithProfiles = await Promise.all(
+                userMatches.map(async (match) => {
+                    const otherUserId = match.user1_id === userId ? match.user2_id : match.user1_id;
 
-            if (error) {
-                console.error('Error fetching incoming swipes:', error);
-                return;
-            }
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', otherUserId)
+                        .single();
 
-            setIncomingSwipes(swipes || []);
+                    return {
+                        ...match,
+                        other_user_profile: profile
+                    };
+                })
+            );
+
+            setMatches(matchesWithProfiles);
         } catch (error) {
-            console.error('Error in fetchIncomingSwipes:', error);
+            console.error('Error fetching matches:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSwipe = async (swipeId: string, liked: boolean) => {
-        try {
-            const { data: userData } = await supabase.auth.getUser();
-            if (!userData?.user) return;
-
-            const userId = userData.user.id;
-            const incomingSwipe = incomingSwipes.find(s => s.id === swipeId);
-            if (!incomingSwipe) return;
-
-            // Create a swipe back to the person who liked you
-            const { error } = await supabase
-                .from('swipes')
-                .insert({
-                    swiper_id: userId,
-                    swipee_id: incomingSwipe.swiper_id,
-                    liked: liked,
-                });
-
-            if (error) {
-                console.error('Error creating swipe:', error);
-                return;
-            }
-
-            // If both people liked each other, create a match
-            if (liked) {
-                const { error: matchError } = await supabase
-                    .from('matches')
-                    .insert({
-                        user1_id: userId,
-                        user2_id: incomingSwipe.swiper_id,
-                        status: 'pending',
-                        meeting_type: incomingSwipe.meeting_type,
-                        suggested_activity: incomingSwipe.suggested_activity,
-                        suggested_venue: incomingSwipe.suggested_venue,
-                    });
-
-                if (matchError) {
-                    console.error('Error creating match:', matchError);
-                } else {
-                    // Navigate to the match flow
-                    router.push(`/postMatch/${userId}-${incomingSwipe.swiper_id}/ChooseMeetType`);
-                }
-            }
-
-            // Remove the swipe from the list
-            setIncomingSwipes(prev => prev.filter(s => s.id !== swipeId));
-        } catch (error) {
-            console.error('Error handling swipe:', error);
+    const getStatusColor = (item: Match) => {
+        switch (item.status) {
+            case 'unscheduled': return '#999'; // Grey
+            case 'proposed': return '#007AFF'; // Blue
+            case 'scheduled': return '#00C48C'; // Green
+            default: return '#999';
         }
     };
 
-    const renderIncomingSwipe = ({ item }: { item: IncomingSwipe }) => {
-        const profile = item.swiper_profile;
-        const photos = profile.photos || [];
+    const getStatusText = (item: Match) => {
+        switch (item.status) {
+            case 'unscheduled': return 'Unscheduled';
+            case 'proposed': return 'Proposed';
+            case 'scheduled': return 'Scheduled';
+            default: return 'Unscheduled';
+        }
+    };
+
+    const handleMatchPress = (match: Match) => {
+        lightImpact();
+        setSelectedMatch(match);
+        setModalVisible(true);
+    };
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
+        setSelectedMatch(null);
+    };
+
+    const handleMatchUpdate = () => {
+        fetchMatches();
+    };
+
+    const renderMatch = ({ item }: { item: Match }) => {
+        const profile = item.other_user_profile;
+        const photos = profile?.photos || [];
         const primaryPhoto = photos.find(p => p.is_primary) || photos[0];
 
         return (
-            <View style={styles.swipeCard}>
+            <TouchableOpacity
+                style={styles.matchCard}
+                onPress={() => handleMatchPress(item)}
+            >
                 {/* Profile Photo */}
                 <View style={styles.photoContainer}>
                     {primaryPhoto ? (
@@ -130,27 +113,28 @@ export default function LikesScreen() {
                     )}
                 </View>
 
-                {/* Profile Info */}
-                <View style={styles.profileInfo}>
-                    <Text style={styles.profileName}>{profile.name}</Text>
-                    <Text style={styles.profileDetails}>
-                        {profile.age} • {profile.gender} • {profile.height}
-                    </Text>
-                    {profile.bio && (
-                        <Text style={styles.profileBio} numberOfLines={2}>
-                            {profile.bio}
-                        </Text>
-                    )}
+                {/* Match Info */}
+                <View style={styles.matchInfo}>
+                    <View style={styles.headerRow}>
+                        <Text style={styles.profileName}>{profile?.name || 'Unknown'}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item) }]}>
+                            <Text style={styles.statusText}>{getStatusText(item)}</Text>
+                        </View>
+                    </View>
 
-                    {/* Date Preference */}
+                    <Text style={styles.matchDetails}>
+                        {profile?.age} • {profile?.gender} • {profile?.height}
+                    </Text>
+
+                    {/* Meeting Type */}
                     {item.meeting_type && (
-                        <View style={styles.datePreference}>
+                        <View style={styles.meetingType}>
                             <Ionicons
                                 name={item.meeting_type === 'video' ? 'videocam' : 'location'}
                                 size={16}
                                 color="#00C48C"
                             />
-                            <Text style={styles.datePreferenceText}>
+                            <Text style={styles.meetingTypeText}>
                                 {item.meeting_type === 'video' ? 'Video Call' : 'In Person'}
                             </Text>
                         </View>
@@ -158,74 +142,71 @@ export default function LikesScreen() {
 
                     {/* Suggested Activity/Venue */}
                     {item.suggested_activity && (
-                        <View style={styles.suggestedActivity}>
-                            <Text style={styles.suggestedActivityText}>
-                                💡 {item.suggested_activity}
-                            </Text>
-                        </View>
+                        <Text style={styles.suggestedActivity}>
+                            💡 {item.suggested_activity}
+                        </Text>
                     )}
                     {item.suggested_venue && (
-                        <View style={styles.suggestedVenue}>
-                            <Text style={styles.suggestedVenueText}>
-                                📍 {item.suggested_venue}
-                            </Text>
-                        </View>
+                        <Text style={styles.suggestedVenue}>
+                            📍 {item.suggested_venue}
+                        </Text>
                     )}
+
+                    {/* Match Date */}
+                    <Text style={styles.matchDate}>
+                        Matched {new Date(item.created_at).toLocaleDateString()}
+                    </Text>
                 </View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.passButton]}
-                        onPress={() => handleSwipe(item.id, false)}
-                    >
-                        <Ionicons name="close" size={24} color="#FF6B6B" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.likeButton]}
-                        onPress={() => handleSwipe(item.id, true)}
-                    >
-                        <Ionicons name="heart" size={24} color="#00C48C" />
-                    </TouchableOpacity>
+                {/* Action Arrow */}
+                <View style={styles.actionArrow}>
+                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
                 </View>
-            </View>
+            </TouchableOpacity>
         );
     };
 
     if (loading) {
         return (
             <View style={styles.container}>
-                <Text style={styles.title}>Loading...</Text>
+                <Text style={styles.title}>Loading matches...</Text>
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Likes</Text>
+            <Text style={styles.title}>Matches</Text>
             <Text style={styles.subtitle}>
-                {incomingSwipes.length === 0
-                    ? "No likes yet. Keep swiping!"
-                    : `${incomingSwipes.length} people liked you`}
+                {matches.length === 0
+                    ? "No matches yet. Keep swiping!"
+                    : `${matches.length} match${matches.length !== 1 ? 'es' : ''}`}
             </Text>
 
-            {incomingSwipes.length === 0 ? (
+            {matches.length === 0 ? (
                 <View style={styles.emptyState}>
-                    <Ionicons name="heart-outline" size={64} color="#ccc" />
+                    <Ionicons name="sparkles-outline" size={64} color="#ccc" />
                     <Text style={styles.emptyStateText}>
-                        When someone likes you, they'll appear here with their date preferences!
+                        When you and someone else like each other, you'll have a match here!
                     </Text>
                 </View>
             ) : (
                 <FlatList
-                    data={incomingSwipes}
+                    data={matches}
                     keyExtractor={(item) => item.id}
-                    renderItem={renderIncomingSwipe}
+                    renderItem={renderMatch}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.listContainer}
                 />
             )}
+
+            {/* Match Modal */}
+            <MatchModal
+                visible={modalVisible}
+                match={selectedMatch}
+                onClose={handleCloseModal}
+                onMatchUpdate={handleMatchUpdate}
+            />
         </View>
     );
 }
@@ -266,19 +247,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
-    swipeCard: {
+    matchCard: {
         backgroundColor: '#fff',
         borderRadius: 20,
-        marginBottom: 20,
+        marginBottom: 16,
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 4 },
         shadowRadius: 12,
         elevation: 5,
         overflow: 'hidden',
+        flexDirection: 'row',
     },
     photoContainer: {
-        height: 200,
+        width: 80,
+        height: 80,
         backgroundColor: '#f8f9fa',
     },
     profilePhoto: {
@@ -292,85 +275,71 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#f8f9fa',
     },
-    profileInfo: {
-        padding: 20,
+    matchInfo: {
+        flex: 1,
+        padding: 16,
+        justifyContent: 'center',
     },
-    profileName: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#1A1A1A',
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 4,
     },
-    profileDetails: {
-        fontSize: 16,
+    profileName: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1A1A1A',
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    statusText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    matchDetails: {
+        fontSize: 14,
         color: '#666',
         marginBottom: 8,
     },
-    profileBio: {
-        fontSize: 15,
-        color: '#444',
-        lineHeight: 20,
-        marginBottom: 12,
-    },
-    datePreference: {
+    meetingType: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#f0f9ff',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
         alignSelf: 'flex-start',
-        marginBottom: 8,
+        marginBottom: 6,
     },
-    datePreferenceText: {
-        fontSize: 14,
+    meetingTypeText: {
+        fontSize: 12,
         color: '#00C48C',
         fontWeight: '600',
-        marginLeft: 6,
+        marginLeft: 4,
     },
     suggestedActivity: {
-        marginBottom: 4,
-    },
-    suggestedActivityText: {
-        fontSize: 14,
+        fontSize: 12,
         color: '#666',
         fontStyle: 'italic',
+        marginBottom: 2,
     },
     suggestedVenue: {
-        marginBottom: 12,
-    },
-    suggestedVenueText: {
-        fontSize: 14,
+        fontSize: 12,
         color: '#666',
         fontStyle: 'italic',
+        marginBottom: 6,
     },
-    actionButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-evenly',
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-        gap: 20,
+    matchDate: {
+        fontSize: 12,
+        color: '#999',
     },
-    actionButton: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+    actionArrow: {
         justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 4,
-        elevation: 3,
+        paddingRight: 16,
     },
-    passButton: {
-        backgroundColor: '#fff',
-        borderWidth: 2,
-        borderColor: '#FF6B6B',
-    },
-    likeButton: {
-        backgroundColor: '#fff',
-        borderWidth: 2,
-        borderColor: '#00C48C',
-    },
-});
+}); 

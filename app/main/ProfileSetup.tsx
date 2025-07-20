@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import {
     View, Text, TextInput, Button, Image, TouchableOpacity,
@@ -53,7 +54,7 @@ export default function ProfileSetup() {
     // All useState and other hooks must be declared before any return
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
-    const [images, setImages] = useState<(string | null)[]>(Array(7).fill(null));
+    const [images, setImages] = useState<(string | null)[]>(Array(8).fill(null));
     const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
     const [promptAnswers, setPromptAnswers] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
@@ -75,6 +76,7 @@ export default function ProfileSetup() {
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
     const [distancePreference, setDistancePreference] = useState<number>(25); // Default 25 miles
+    const [anyDistance, setAnyDistance] = useState<boolean>(false); // New checkbox for any distance
     const [locationPermission, setLocationPermission] = useState<boolean>(false);
 
     // Deal breaker state - moved to top with other hooks
@@ -136,7 +138,7 @@ export default function ProfileSetup() {
 
     const handleAddImage = async (index: number) => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: 'images',
             allowsEditing: true,
             aspect: [4, 5],
             quality: 0.7,
@@ -167,7 +169,6 @@ export default function ProfileSetup() {
         if (!name.trim()) errors.push('Name is required');
         if (!bio.trim()) errors.push('Bio is required');
         if (!gender) errors.push('Gender is required');
-        if (!sexuality) errors.push('Sexuality is required');
         if (!age || parseInt(age) < 18 || parseInt(age) > 100) errors.push('Valid age (18-100) is required');
         if (!height) errors.push('Height is required');
         if (!images.some(img => img)) errors.push('At least one photo is required');
@@ -236,11 +237,11 @@ export default function ProfileSetup() {
 
         const profileData: Profile = {
             id: user.id,
+            user_id: user.id,
             name,
             bio,
             gender,
-            sexuality,
-            age: age ? parseInt(age) : undefined,
+            age: age ? parseInt(age) || 0 : 0,
 
             religion,
             politics,
@@ -254,14 +255,11 @@ export default function ProfileSetup() {
             longitude: longitude || undefined,
             city: city || undefined,
             state: state || undefined,
-            distance_preference: distancePreference,
+            distance_preference: anyDistance ? 999 : distancePreference, // Use 999 for "any distance"
 
-            avatar_url: firstPhotoUrl,
             photos: photos.length > 0 ? photos : undefined,
-            prompts: selectedPrompts.map(p => ({
-                question: p,
-                answer: promptAnswers[p] || '',
-            })),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
         };
 
         const { error: updateError } = await supabase.from('profiles').upsert(profileData);
@@ -583,18 +581,37 @@ export default function ProfileSetup() {
             {/* Distance Preference */}
             <View style={getFieldCardStyle('distancePreference')}>
                 <Text style={styles.fieldLabel}>Distance Preference</Text>
-                <Text style={styles.distanceValue}>{distancePreference.toFixed(1)} miles</Text>
-                <Slider
-                    style={styles.distanceSlider}
-                    minimumValue={1}
-                    maximumValue={100}
-                    value={distancePreference}
-                    onValueChange={(val) => setDistancePreference(Math.round(val * 10) / 10)}
-                    minimumTrackTintColor="#00C48C"
-                    maximumTrackTintColor="#E0E0E0"
-                    step={0.1}
-                />
-                <Text style={styles.dealBreakerDesc}>Show me people within this distance</Text>
+                <View style={styles.distanceValueRow}>
+                    <Text style={styles.distanceValue}>{anyDistance ? 'Any Distance' : `${distancePreference.toFixed(1)} miles`}</Text>
+                    <TouchableOpacity
+                        style={styles.anyDistanceButton}
+                        onPress={() => setAnyDistance(!anyDistance)}
+                    >
+                        <View style={styles.checkboxContainer}>
+                            <Ionicons
+                                name={anyDistance ? 'checkmark-circle' : 'ellipse-outline'}
+                                size={24}
+                                color="#00C48C"
+                            />
+                            <Text style={styles.checkboxLabel}>Any distance</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+                {!anyDistance && (
+                    <Slider
+                        style={styles.distanceSlider}
+                        minimumValue={1}
+                        maximumValue={100}
+                        value={distancePreference}
+                        onValueChange={(val) => setDistancePreference(Math.round(val * 10) / 10)}
+                        minimumTrackTintColor="#00C48C"
+                        maximumTrackTintColor="#E0E0E0"
+                        step={0.1}
+                    />
+                )}
+                <Text style={styles.dealBreakerDesc}>
+                    {anyDistance ? 'Show me people from anywhere' : 'Show me people within this distance'}
+                </Text>
             </View>
 
 
@@ -618,7 +635,7 @@ const styles = StyleSheet.create({
     },
     container: {
         backgroundColor: '#fff',
-        padding: 20,
+        padding: 24,
         paddingBottom: 60,
     },
     header: {
@@ -630,18 +647,20 @@ const styles = StyleSheet.create({
     },
     imageSlot: {
         alignItems: 'center',
-        aspectRatio: 1, // Make them square instead of tall rectangles
+        height: 120, // Set specific height to control size
         backgroundColor: '#eee',
         borderRadius: 10,
         justifyContent: 'center',
         marginBottom: 4,
-        width: '30%',
+        width: '48%', // Make them larger to fill the row better
         position: 'relative',
+        overflow: 'hidden', // Crop any overflow
     },
     firstImageSlot: {
-        width: '100%', // Make first photo full width
-        aspectRatio: 16 / 9, // Wider aspect ratio for primary photo
+        width: '48%', // Make first photo larger but not full width
+        height: 120, // Same height as others
         marginBottom: 4,
+        overflow: 'hidden', // Crop any overflow
     },
     primaryPhotoBadge: {
         position: 'absolute',
@@ -675,9 +694,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 8,
         gap: 4,
-        height: 275,
+        overflow: 'hidden',
     },
     plus: {
         color: '#999',
@@ -687,14 +706,18 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     promptChip: {
-        backgroundColor: '#eee',
+        backgroundColor: '#f0f0f0',
         borderRadius: 20,
         marginRight: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        marginBottom: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
     promptChipSelected: {
-        backgroundColor: '#007AFF',
+        backgroundColor: '#00C48C',
+        borderColor: '#00C48C',
     },
     promptLabel: {
         color: '#444',
@@ -704,13 +727,14 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '500',
-        marginBottom: 8,
-        marginTop: 8,
+        marginBottom: 12,
+        marginTop: 20,
     },
     thumbnail: {
         borderRadius: 10,
         height: '100%',
         width: '100%',
+        resizeMode: 'cover', // This will crop the image to fill the container
     },
     dealBreakerRow: {
         flexDirection: 'row',
@@ -1032,5 +1056,30 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: '600',
+    },
+    distanceValueRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    anyDistanceButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#00C48C',
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    checkboxLabel: {
+        fontSize: 16,
+        color: '#00C48C',
+        fontWeight: '500',
     },
 });

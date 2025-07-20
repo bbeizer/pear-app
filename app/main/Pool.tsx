@@ -12,11 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'lib/supabaseClient';
-import { getSupabaseWithAuth } from 'lib/supabaseWithAuth';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { Profile } from '../../types';
-import { fetchAvailableProfiles, fetchUserMatches } from '../../lib/supabaseUtils';
+import { fetchUsersLikes, fetchUserMatches } from '../../lib/supabaseUtils';
 import { useHaptics } from '../../lib/hooks/useHaptics';
 import Slider from '@react-native-community/slider';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
@@ -41,6 +40,7 @@ interface Venue {
 }
 
 export default function Pool() {
+    // All state declarations at the top
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userId, setUserId] = useState<string | null>(null);
@@ -51,20 +51,19 @@ export default function Pool() {
     const [venues, setVenues] = useState<Venue[]>([]);
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [showVenueSearch, setShowVenueSearch] = useState(false);
-
-    // Discovery settings state
     const [showDiscoverySettings, setShowDiscoverySettings] = useState(false);
-    const [ageRange, setAgeRange] = useState<[number, number]>([25, 35]);
-    const [distancePreference, setDistancePreference] = useState<number>(25);
+    const [ageRange, setAgeRange] = useState<[number, number]>([18, 99]);
+    const [distancePreference, setDistancePreference] = useState<number>(100);
     const [genderPreference, setGenderPreference] = useState<string[]>([]);
     const [religionDealBreakers, setReligionDealBreakers] = useState<string[]>([]);
     const [politicsDealBreakers, setPoliticsDealBreakers] = useState<string[]>([]);
-    const [heightRange, setHeightRange] = useState<[number, number]>([0, 35]); // HEIGHTS array indices
+    const [heightRange, setHeightRange] = useState<[number, number]>([0, 35]);
     const [datingIntentions, setDatingIntentions] = useState<string[]>([]);
     const [relationshipTypes, setRelationshipTypes] = useState<string[]>([]);
     const [drinkingDealBreakers, setDrinkingDealBreakers] = useState<string[]>([]);
     const [drugsDealBreakers, setDrugsDealBreakers] = useState<string[]>([]);
     const [isApplyingFilters, setIsApplyingFilters] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const router = useRouter();
     const { lightImpact, successNotification } = useHaptics();
@@ -90,10 +89,6 @@ export default function Pool() {
         }
 
         try {
-            // For MVP, we'll use a mock API response
-            // In production, you'd use: `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=YOUR_API_KEY`
-
-            // Mock venues for now
             const mockVenues: Venue[] = [
                 {
                     place_id: '1',
@@ -130,152 +125,229 @@ export default function Pool() {
 
     // Function to apply discovery filters to profiles
     const applyDiscoveryFilters = async () => {
+        console.log('🍐 [POOL] Starting applyDiscoveryFilters...');
+
+        if (isApplyingFilters) {
+            console.log('🍐 [POOL] Already applying filters, skipping...');
+            return;
+        }
+
+        console.log('🍐 [POOL] Setting loading states...');
         setIsApplyingFilters(true);
+        setIsLoading(true);
+        console.log('🍐 [POOL] Loading states set, about to get user data...');
+
+        console.log('🍐 [POOL] Getting user data from Supabase...');
         const { data: userData } = await supabase.auth.getUser();
         const uid = userData?.user?.id;
-        if (!uid) return;
+        if (!uid) {
+            console.log('🍐 [POOL] No user ID found, returning early');
+            return;
+        }
 
+        console.log('🍐 [POOL] User ID found:', uid);
         setUserId(uid);
 
-        // Get user's profile to access location data
         const { data: userProfile } = await supabase
             .from('profiles')
-            .select('latitude, longitude, distance_preference')
+            .select('*')
             .eq('id', uid)
             .single();
 
-        const matches = await fetchUserMatches(uid);
-        const excludedIds = [uid, ...matches.map(m => m.user1_id === uid ? m.user2_id : m.user1_id)];
+        console.log('🍐 [POOL] User profile data:', userProfile);
 
-        // Get all available profiles first
-        let available = await fetchAvailableProfiles(
+        console.log('🍐 [POOL] Fetching user matches...');
+        const matches = await fetchUserMatches(uid);
+        console.log('🍐 [POOL] User matches:', matches);
+
+        // Get all people the user has swiped on (both likes and passes)
+        const { data: userSwipes } = await supabase
+            .from('swipes')
+            .select('swipee_id')
+            .eq('swiper_id', uid);
+
+        const swipedOnIds = userSwipes?.map(s => s.swipee_id) || [];
+        const excludedIds = [uid, ...swipedOnIds];
+        console.log('🍐 [POOL] Excluded IDs (user + matches):', excludedIds);
+
+        console.log('🍐 [POOL] Fetching available profiles...');
+        let available = await fetchUsersLikes(
             excludedIds,
-            userProfile?.latitude,
-            userProfile?.longitude,
-            distancePreference // Use discovery setting instead of profile setting
+            userProfile?.latitude || null,
+            userProfile?.longitude || null,
+            distancePreference
         );
 
-        // Apply discovery filters
+        console.log('🍐 [POOL] Raw available profiles:', available);
+        console.log(`🍐 [POOL] Found ${available.length} profiles before filtering`);
+
+        console.log('🍐 [POOL] Current filter settings:', {
+            ageRange,
+            distancePreference,
+            genderPreference,
+            religionDealBreakers,
+            politicsDealBreakers,
+            heightRange,
+            datingIntentions,
+            relationshipTypes,
+            drinkingDealBreakers,
+            drugsDealBreakers
+        });
+
+        let filteredCount = 0;
         available = available.filter(profile => {
-            // Age filter
+            console.log(`🍐 [POOL] Checking profile: ${profile.name} (${profile.id})`);
+
             if (profile.age && (profile.age < ageRange[0] || profile.age > ageRange[1])) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - age ${profile.age} not in range ${ageRange[0]}-${ageRange[1]}`);
+                filteredCount++;
                 return false;
             }
 
-            // Gender preference filter
             if (genderPreference.length > 0 && profile.gender && !genderPreference.includes(profile.gender)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - gender ${profile.gender} not in preferences ${genderPreference.join(', ')}`);
+                filteredCount++;
                 return false;
             }
 
-            // Religion deal breaker filter
             if (religionDealBreakers.length > 0 && profile.religion && religionDealBreakers.includes(profile.religion)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - religion ${profile.religion} is deal breaker`);
+                filteredCount++;
                 return false;
             }
 
-            // Politics deal breaker filter
             if (politicsDealBreakers.length > 0 && profile.politics && politicsDealBreakers.includes(profile.politics)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - politics ${profile.politics} is deal breaker`);
+                filteredCount++;
                 return false;
             }
 
-            // Height range filter
             if (profile.height) {
                 const profileHeightIndex = HEIGHTS.indexOf(profile.height);
                 if (profileHeightIndex !== -1 && (profileHeightIndex < heightRange[0] || profileHeightIndex > heightRange[1])) {
+                    console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - height ${profile.height} not in range`);
+                    filteredCount++;
                     return false;
                 }
             }
 
-            // Dating intentions filter
             if (datingIntentions.length > 0 && profile.dating_intentions && !datingIntentions.includes(profile.dating_intentions)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - dating intentions ${profile.dating_intentions} not in preferences`);
+                filteredCount++;
                 return false;
             }
 
-            // Relationship type filter
             if (relationshipTypes.length > 0 && profile.relationship_type && !relationshipTypes.includes(profile.relationship_type)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - relationship type ${profile.relationship_type} not in preferences`);
+                filteredCount++;
                 return false;
             }
 
-            // Drinking frequency deal breaker filter
             if (drinkingDealBreakers.length > 0 && profile.drinking_frequency && drinkingDealBreakers.includes(profile.drinking_frequency)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - drinking frequency ${profile.drinking_frequency} is deal breaker`);
+                filteredCount++;
                 return false;
             }
 
-            // Drugs frequency deal breaker filter
             if (drugsDealBreakers.length > 0 && profile.drugs_frequency && drugsDealBreakers.includes(profile.drugs_frequency)) {
+                console.log(`🍐 [POOL] ❌ Filtered out ${profile.name} - drugs frequency ${profile.drugs_frequency} is deal breaker`);
+                filteredCount++;
                 return false;
             }
 
+            console.log(`🍐 [POOL] ✅ Profile ${profile.name} passed all filters`);
             return true;
         });
 
+        console.log(`🍐 [POOL] Filtering complete: ${filteredCount} filtered out, ${available.length} profiles remaining`);
+        console.log('🍐 [POOL] Final profiles:', available.map(p => ({ id: p.id, name: p.name, age: p.age, gender: p.gender })));
+
         setProfiles(available);
-        setCurrentIndex(0); // Reset to first profile after filtering
+        setCurrentIndex(0);
         setIsApplyingFilters(false);
+        setIsLoading(false);
+
+        console.log('🍐 [POOL] applyDiscoveryFilters completed');
     };
 
+    // All useEffect hooks
     useEffect(() => {
+        console.log('🍐 [POOL] Component mounted, calling applyDiscoveryFilters');
         applyDiscoveryFilters();
     }, []);
 
+    // Render logic
+    const currentProfile = profiles[currentIndex];
+
+    useEffect(() => {
+        if (currentProfile && !isLoading) {
+            console.log('🍐 [POOL] Current profile displayed:', {
+                index: currentIndex,
+                id: currentProfile.id,
+                name: currentProfile.name,
+                age: currentProfile.age,
+                gender: currentProfile.gender,
+                city: currentProfile.city,
+                state: currentProfile.state,
+                bio: currentProfile.bio?.substring(0, 50) + '...',
+                photos: currentProfile.photos?.length || 0
+            });
+        }
+    }, [currentIndex, currentProfile, isLoading]);
+
+    // Event handlers
     const handlePearClick = () => {
+        console.log('🍐 [POOL] Pear button clicked');
         lightImpact();
         setShowMeetingModal(true);
     };
 
     const handleMeetingTypeSelect = (type: 'in-person' | 'video') => {
         setSelectedMeetingType(type);
-        if (type === 'video') {
-            // For video, we can proceed directly
-            handleSwipe(true);
-            setShowMeetingModal(false);
-            setSelectedMeetingType(null);
-        } else {
-            // For in-person, show venue search
-            setShowVenueSearch(true);
-        }
-    };
-
-    const handleVenueSelect = (venue: Venue) => {
-        lightImpact();
-        setSelectedVenue(venue);
-        setShowVenueSearch(false);
-        setLocationQuery(venue.name);
-    };
-
-    const handleActivitySelect = (activity: string) => {
-        successNotification();
-        setSelectedActivity(activity);
-        // Proceed with the like and selected activity/venue
+        // For both video and in-person, proceed directly
         handleSwipe(true);
         setShowMeetingModal(false);
         setSelectedMeetingType(null);
-        setSelectedActivity('');
-        setSelectedVenue(null);
-        setLocationQuery('');
-        setShowVenueSearch(false);
     };
 
+    // Removed venue and activity selection complexity for now
+
     const handleSwipe = async (liked: boolean) => {
+        console.log('🍐 [POOL] handleSwipe called with liked:', liked);
+
         const target = profiles[currentIndex];
-        if (!target || !userId) return;
+        if (!target || !userId) {
+            console.log('🍐 [POOL] ❌ No target profile or userId, returning early');
+            return;
+        }
+
+        console.log('🍐 [POOL] Swiping on profile:', {
+            id: target.id,
+            name: target.name,
+            age: target.age,
+            gender: target.gender,
+            currentIndex,
+            totalProfiles: profiles.length
+        });
 
         const session = await supabase.auth.getSession();
         const uid = session.data.session?.user?.id;
         const token = session.data.session?.access_token;
-        if (!uid || !token) return;
+        if (!uid || !token) {
+            console.log('🍐 [POOL] ❌ No session or token, returning early');
+            return;
+        }
 
-        const authedSupabase = await getSupabaseWithAuth();
+        console.log('🍐 [POOL] User session valid, proceeding with swipe');
 
-        // Prepare swipe data
         const swipeData: any = {
             swiper_id: uid,
             swipee_id: target.id,
             liked,
         };
 
-        // If they liked and selected meeting type, save that info
         if (liked && selectedMeetingType) {
-            swipeData.meeting_type = selectedMeetingType;
+            swipeData.suggested_meeting_type = selectedMeetingType;
             if (selectedActivity) {
                 swipeData.suggested_activity = selectedActivity;
             }
@@ -284,21 +356,44 @@ export default function Pool() {
             }
         }
 
-        await authedSupabase.from('swipes').insert(swipeData);
+        console.log('🍐 [POOL] Swipe data to insert:', swipeData);
 
-        console.log(`${liked ? 'Liked' : 'Passed'} ${target.name}`);
+        try {
+            const { data, error } = await supabase.from('swipes').insert(swipeData);
+            if (error) {
+                console.log('🍐 [POOL] ❌ Error inserting swipe:', error);
+            } else {
+                console.log('🍐 [POOL] ✅ Swipe inserted successfully:', data);
+            }
+        } catch (err) {
+            console.log('🍐 [POOL] ❌ Exception inserting swipe:', err);
+        }
+
+        console.log(`🍐 [POOL] ${liked ? 'Liked' : 'Passed'} ${target.name}`);
         if (liked && selectedActivity) {
-            console.log(`Suggested activity: ${selectedActivity}`);
+            console.log(`🍐 [POOL] Suggested activity: ${selectedActivity}`);
             if (selectedVenue) {
-                console.log(`Suggested venue: ${selectedVenue.name} at ${selectedVenue.address}`);
+                console.log(`🍐 [POOL] Suggested venue: ${selectedVenue.name} at ${selectedVenue.address}`);
             }
         }
-        setCurrentIndex(prev => prev + 1);
+
+        const newIndex = currentIndex + 1;
+        console.log(`🍐 [POOL] Moving to next profile: ${newIndex}/${profiles.length}`);
+        setCurrentIndex(newIndex);
     };
 
-    const currentProfile = profiles[currentIndex];
+    if (isLoading) {
+        console.log('🍐 [POOL] RENDER: Showing loading screen (isLoading=true)');
+        return (
+            <View style={styles.absoluteContainer}>
+                <StatusBar translucent backgroundColor="transparent" style="light" />
+                <Text style={styles.emptyText}>Loading profiles...</Text>
+            </View>
+        );
+    }
 
     if (!currentProfile) {
+        console.log('🍐 [POOL] No profiles available, showing empty state');
         return (
             <View style={styles.absoluteContainer}>
                 <StatusBar translucent backgroundColor="transparent" style="light" />
@@ -311,7 +406,7 @@ export default function Pool() {
     }
 
     const photos = currentProfile.photos ?? [];
-    const prompts = currentProfile.prompts ?? [];
+    const prompts: any[] = [];
 
     const interleaved: React.ReactNode[] = [];
 
@@ -435,11 +530,20 @@ export default function Pool() {
                                     <Text style={styles.settingLabel}>Current Filters Active</Text>
                                     <Text style={styles.debugText}>
                                         Age: {ageRange[0]}-{ageRange[1]} |
-                                        Distance: {distancePreference}mi |
+                                        Distance: {distancePreference.toFixed(1)} miles |
                                         Gender: {genderPreference.length > 0 ? genderPreference.join(', ') : 'Any'} |
                                         Religion Deal-breakers: {religionDealBreakers.length} |
                                         Politics Deal-breakers: {politicsDealBreakers.length}
                                     </Text>
+                                    <TouchableOpacity
+                                        style={styles.applyFiltersButton}
+                                        onPress={() => {
+                                            console.log('🍐 [POOL] Apply filters button clicked');
+                                            applyDiscoveryFilters();
+                                        }}
+                                    >
+                                        <Text style={styles.applyFiltersText}>Apply Filters</Text>
+                                    </TouchableOpacity>
                                 </View>
 
                                 {/* Age Range */}
@@ -467,7 +571,9 @@ export default function Pool() {
                                 {/* Distance */}
                                 <View style={styles.settingSection}>
                                     <Text style={styles.settingLabel}>Distance</Text>
-                                    <Text style={styles.distanceValue}>{distancePreference.toFixed(1)} miles</Text>
+                                    <View style={styles.distanceValueRow}>
+                                        <Text style={styles.distanceValue}>{distancePreference.toFixed(1)} miles</Text>
+                                    </View>
                                     <Slider
                                         style={{ width: '100%', height: 40 }}
                                         minimumValue={1}
@@ -478,12 +584,17 @@ export default function Pool() {
                                         maximumTrackTintColor="#E0E0E0"
                                         step={0.1}
                                     />
-                                    <Text style={styles.settingDescription}>Only show me people within this distance</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Only show me people within this distance
+                                    </Text>
                                 </View>
 
                                 {/* Gender Preference */}
                                 <View style={styles.settingSection}>
-                                    <Text style={styles.settingLabel}>Show me</Text>
+                                    <Text style={styles.settingLabel}>Gender Preference</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Leave empty to see all genders
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {GENDERS.map(gender => (
                                             <TouchableOpacity
@@ -494,9 +605,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (genderPreference.includes(gender)) {
-                                                        setGenderPreference(genderPreference.filter(g => g !== gender));
+                                                        setGenderPreference(prev => prev.filter(g => g !== gender));
                                                     } else {
-                                                        setGenderPreference([...genderPreference, gender]);
+                                                        setGenderPreference(prev => [...prev, gender]);
                                                     }
                                                 }}
                                             >
@@ -513,7 +624,10 @@ export default function Pool() {
 
                                 {/* Religion Deal Breakers */}
                                 <View style={styles.settingSection}>
-                                    <Text style={styles.settingLabel}>Religion (Deal Breakers)</Text>
+                                    <Text style={styles.settingLabel}>Religion Deal Breakers</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Select religions you don't want to see
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {RELIGIONS.map(religion => (
                                             <TouchableOpacity
@@ -524,9 +638,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (religionDealBreakers.includes(religion)) {
-                                                        setReligionDealBreakers(religionDealBreakers.filter(r => r !== religion));
+                                                        setReligionDealBreakers(prev => prev.filter(r => r !== religion));
                                                     } else {
-                                                        setReligionDealBreakers([...religionDealBreakers, religion]);
+                                                        setReligionDealBreakers(prev => [...prev, religion]);
                                                     }
                                                 }}
                                             >
@@ -543,7 +657,10 @@ export default function Pool() {
 
                                 {/* Politics Deal Breakers */}
                                 <View style={styles.settingSection}>
-                                    <Text style={styles.settingLabel}>Politics (Deal Breakers)</Text>
+                                    <Text style={styles.settingLabel}>Politics Deal Breakers</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Select political views you don't want to see
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {POLITICS.map(politics => (
                                             <TouchableOpacity
@@ -554,9 +671,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (politicsDealBreakers.includes(politics)) {
-                                                        setPoliticsDealBreakers(politicsDealBreakers.filter(p => p !== politics));
+                                                        setPoliticsDealBreakers(prev => prev.filter(p => p !== politics));
                                                     } else {
-                                                        setPoliticsDealBreakers([...politicsDealBreakers, politics]);
+                                                        setPoliticsDealBreakers(prev => [...prev, politics]);
                                                     }
                                                 }}
                                             >
@@ -581,7 +698,7 @@ export default function Pool() {
                                     <MultiSlider
                                         values={heightRange}
                                         min={0}
-                                        max={HEIGHTS.length - 1}
+                                        max={35}
                                         step={1}
                                         onValuesChange={(values) => setHeightRange([values[0], values[1]])}
                                         selectedStyle={{ backgroundColor: '#00C48C' }}
@@ -591,12 +708,14 @@ export default function Pool() {
                                         markerStyle={{ backgroundColor: '#00C48C', width: 20, height: 20, borderRadius: 10 }}
                                         pressedMarkerStyle={{ backgroundColor: '#009973', transform: [{ scale: 1.2 }] }}
                                     />
-                                    <Text style={styles.settingDescription}>Only show me people within this height range</Text>
                                 </View>
 
                                 {/* Dating Intentions */}
                                 <View style={styles.settingSection}>
                                     <Text style={styles.settingLabel}>Dating Intentions</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Leave empty to see all intentions
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {DATING_INTENTIONS.map(intention => (
                                             <TouchableOpacity
@@ -607,9 +726,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (datingIntentions.includes(intention)) {
-                                                        setDatingIntentions(datingIntentions.filter(i => i !== intention));
+                                                        setDatingIntentions(prev => prev.filter(d => d !== intention));
                                                     } else {
-                                                        setDatingIntentions([...datingIntentions, intention]);
+                                                        setDatingIntentions(prev => [...prev, intention]);
                                                     }
                                                 }}
                                             >
@@ -627,6 +746,9 @@ export default function Pool() {
                                 {/* Relationship Types */}
                                 <View style={styles.settingSection}>
                                     <Text style={styles.settingLabel}>Relationship Types</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Leave empty to see all types
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {RELATIONSHIP_TYPES.map(type => (
                                             <TouchableOpacity
@@ -637,9 +759,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (relationshipTypes.includes(type)) {
-                                                        setRelationshipTypes(relationshipTypes.filter(t => t !== type));
+                                                        setRelationshipTypes(prev => prev.filter(t => t !== type));
                                                     } else {
-                                                        setRelationshipTypes([...relationshipTypes, type]);
+                                                        setRelationshipTypes(prev => [...prev, type]);
                                                     }
                                                 }}
                                             >
@@ -654,9 +776,12 @@ export default function Pool() {
                                     </View>
                                 </View>
 
-                                {/* Drinking Frequency (Deal Breakers) */}
+                                {/* Drinking Frequency Deal Breakers */}
                                 <View style={styles.settingSection}>
-                                    <Text style={styles.settingLabel}>Drinking Frequency (Deal Breakers)</Text>
+                                    <Text style={styles.settingLabel}>Drinking Frequency Deal Breakers</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Select drinking habits you don't want to see
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {DRINKING_FREQUENCY.map(frequency => (
                                             <TouchableOpacity
@@ -667,9 +792,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (drinkingDealBreakers.includes(frequency)) {
-                                                        setDrinkingDealBreakers(drinkingDealBreakers.filter(f => f !== frequency));
+                                                        setDrinkingDealBreakers(prev => prev.filter(d => d !== frequency));
                                                     } else {
-                                                        setDrinkingDealBreakers([...drinkingDealBreakers, frequency]);
+                                                        setDrinkingDealBreakers(prev => [...prev, frequency]);
                                                     }
                                                 }}
                                             >
@@ -684,9 +809,12 @@ export default function Pool() {
                                     </View>
                                 </View>
 
-                                {/* Drugs Frequency (Deal Breakers) */}
+                                {/* Drugs Frequency Deal Breakers */}
                                 <View style={styles.settingSection}>
-                                    <Text style={styles.settingLabel}>Drugs Frequency (Deal Breakers)</Text>
+                                    <Text style={styles.settingLabel}>Drugs Frequency Deal Breakers</Text>
+                                    <Text style={styles.settingDescription}>
+                                        Select drug habits you don't want to see
+                                    </Text>
                                     <View style={styles.chipContainer}>
                                         {DRUGS_FREQUENCY.map(frequency => (
                                             <TouchableOpacity
@@ -697,9 +825,9 @@ export default function Pool() {
                                                 ]}
                                                 onPress={() => {
                                                     if (drugsDealBreakers.includes(frequency)) {
-                                                        setDrugsDealBreakers(drugsDealBreakers.filter(f => f !== frequency));
+                                                        setDrugsDealBreakers(prev => prev.filter(d => d !== frequency));
                                                     } else {
-                                                        setDrugsDealBreakers([...drugsDealBreakers, frequency]);
+                                                        setDrugsDealBreakers(prev => [...prev, frequency]);
                                                     }
                                                 }}
                                             >
@@ -713,21 +841,21 @@ export default function Pool() {
                                         ))}
                                     </View>
                                 </View>
-                            </ScrollView>
 
-                            <TouchableOpacity
-                                style={[styles.saveButton, isApplyingFilters && styles.saveButtonDisabled]}
-                                onPress={async () => {
-                                    if (isApplyingFilters) return;
-                                    setShowDiscoverySettings(false);
-                                    await applyDiscoveryFilters();
-                                }}
-                                disabled={isApplyingFilters}
-                            >
-                                <Text style={styles.saveButtonText}>
-                                    {isApplyingFilters ? 'Applying...' : 'Apply Filters'}
-                                </Text>
-                            </TouchableOpacity>
+                                {/* Save Button */}
+                                <TouchableOpacity
+                                    style={[styles.saveButton, isApplyingFilters && styles.saveButtonDisabled]}
+                                    onPress={() => {
+                                        setShowDiscoverySettings(false);
+                                        applyDiscoveryFilters();
+                                    }}
+                                    disabled={isApplyingFilters}
+                                >
+                                    <Text style={styles.saveButtonText}>
+                                        {isApplyingFilters ? 'Applying...' : 'Save & Apply'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </ScrollView>
                         </View>
                     </TouchableOpacity>
                 </TouchableOpacity>
@@ -735,99 +863,130 @@ export default function Pool() {
 
             {/* Meeting Type Modal */}
             {showMeetingModal && (
-                <View style={styles.modalOverlay}>
-                    <View style={styles.meetingModal}>
-                        <Text style={styles.modalTitle}>How would you like to meet?</Text>
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowMeetingModal(false)}
+                >
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <View style={styles.meetingModal}>
+                            <Text style={styles.modalTitle}>How would you like to meet?</Text>
 
-                        {!selectedMeetingType ? (
-                            <View style={styles.meetingOptions}>
-                                <TouchableOpacity
-                                    style={styles.meetingOption}
-                                    onPress={() => handleMeetingTypeSelect('in-person')}
-                                >
-                                    <Text style={styles.meetingOptionText}>In Person 🤝</Text>
-                                </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.meetingOption}
+                                onPress={() => handleMeetingTypeSelect('in-person')}
+                            >
+                                <Text style={styles.meetingOptionText}>In Person</Text>
+                                <Text style={styles.meetingOptionDescription}>Meet up for coffee, dinner, or an activity</Text>
+                            </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={styles.meetingOption}
-                                    onPress={() => handleMeetingTypeSelect('video')}
-                                >
-                                    <Text style={styles.meetingOptionText}>Video Call 📹</Text>
-                                </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.meetingOption}
+                                onPress={() => handleMeetingTypeSelect('video')}
+                            >
+                                <Text style={styles.meetingOptionText}>Video Call</Text>
+                                <Text style={styles.meetingOptionDescription}>Have a virtual date over video</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            )}
 
-                                <TouchableOpacity
-                                    style={styles.cancelButton}
-                                    onPress={() => setShowMeetingModal(false)}
-                                >
-                                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : selectedMeetingType === 'in-person' ? (
-                            <View style={styles.activityOptions}>
-                                {!showVenueSearch ? (
-                                    <>
-                                        <Text style={styles.activityTitle}>Suggest an activity:</Text>
-                                        <ScrollView style={styles.activityScroll}>
-                                            {activities.map((activity, index) => (
-                                                <TouchableOpacity
-                                                    key={index}
-                                                    style={styles.activityOption}
-                                                    onPress={() => handleActivitySelect(activity)}
-                                                >
-                                                    <Text style={styles.activityOptionText}>{activity}</Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </ScrollView>
-                                        <TouchableOpacity
-                                            style={styles.backButton}
-                                            onPress={() => setSelectedMeetingType(null)}
-                                        >
-                                            <Text style={styles.backButtonText}>Back</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                ) : (
-                                    <View style={styles.venueSearchContainer}>
-                                        <Text style={styles.activityTitle}>Where should we meet?</Text>
-                                        <TextInput
-                                            style={styles.locationInput}
-                                            placeholder="Search for a place..."
-                                            value={locationQuery}
-                                            onChangeText={(text) => {
-                                                setLocationQuery(text);
-                                                searchVenues(text);
-                                            }}
-                                        />
-                                        {venues.length > 0 && (
-                                            <FlatList
-                                                data={venues}
-                                                keyExtractor={(item) => item.place_id}
-                                                renderItem={({ item }) => (
-                                                    <TouchableOpacity
-                                                        style={styles.venueOption}
-                                                        onPress={() => handleVenueSelect(item)}
-                                                    >
-                                                        <Text style={styles.venueName}>{item.name}</Text>
-                                                        <Text style={styles.venueAddress}>{item.address}</Text>
-                                                        {item.rating && (
-                                                            <Text style={styles.venueRating}>⭐ {item.rating}</Text>
-                                                        )}
-                                                    </TouchableOpacity>
-                                                )}
-                                                style={styles.venueList}
-                                            />
+            {/* Venue Search Modal */}
+            {showVenueSearch && (
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowVenueSearch(false)}
+                >
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <View style={[styles.meetingModal, { maxHeight: '80%' }]}>
+                            <Text style={styles.modalTitle}>Choose a venue</Text>
+
+                            <TextInput
+                                style={styles.locationInput}
+                                placeholder="Search for venues..."
+                                value={locationQuery}
+                                onChangeText={(text) => {
+                                    setLocationQuery(text);
+                                    searchVenues(text);
+                                }}
+                            />
+
+                            <ScrollView style={styles.venueList}>
+                                {venues.map(venue => (
+                                    <TouchableOpacity
+                                        key={venue.place_id}
+                                        style={styles.venueOption}
+                                        onPress={() => {
+                                            // Simplified - just close the modal
+                                            setShowVenueSearch(false);
+                                        }}
+                                    >
+                                        <Text style={styles.venueName}>{venue.name}</Text>
+                                        <Text style={styles.venueAddress}>{venue.address}</Text>
+                                        {venue.rating && (
+                                            <Text style={styles.venueRating}>⭐ {venue.rating}</Text>
                                         )}
-                                        <TouchableOpacity
-                                            style={styles.backButton}
-                                            onPress={() => setShowVenueSearch(false)}
-                                        >
-                                            <Text style={styles.backButtonText}>Back</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
-                        ) : null}
-                    </View>
-                </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={() => setShowVenueSearch(false)}
+                            >
+                                <Text style={styles.backButtonText}>Back</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            )}
+
+            {/* Activity Selection Modal */}
+            {showMeetingModal && selectedMeetingType === 'in-person' && !showVenueSearch && (
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowMeetingModal(false)}
+                >
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <View style={[styles.meetingModal, { maxHeight: '80%' }]}>
+                            <Text style={styles.modalTitle}>Choose an activity</Text>
+
+                            <ScrollView style={styles.activityScroll}>
+                                {activities.map(activity => (
+                                    <TouchableOpacity
+                                        key={activity}
+                                        style={styles.activityOption}
+                                        onPress={() => {
+                                            // Simplified - just close the modal
+                                            setShowMeetingModal(false);
+                                        }}
+                                    >
+                                        <Text style={styles.activityOptionText}>{activity}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={() => setShowVenueSearch(true)}
+                            >
+                                <Text style={styles.backButtonText}>Back to Venues</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
             )}
         </View>
     );
@@ -1006,6 +1165,11 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#1A1A1A',
     },
+    meetingOptionDescription: {
+        fontSize: 13,
+        color: '#666',
+        marginTop: 4,
+    },
     cancelButton: {
         backgroundColor: '#f8f9fa',
         padding: 16,
@@ -1140,6 +1304,15 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 8,
     },
+    distanceValueRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    anyDistanceButton: {
+        padding: 5,
+    },
     chipContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -1208,5 +1381,27 @@ const styles = StyleSheet.create({
         color: '#888',
         marginTop: 4,
         fontStyle: 'italic',
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    checkboxLabel: {
+        fontSize: 14,
+        color: '#666',
+    },
+    applyFiltersButton: {
+        backgroundColor: '#00C48C',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    applyFiltersText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

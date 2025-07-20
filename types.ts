@@ -5,68 +5,68 @@ export type RootStackParamList = {
     Availability: undefined;
 };
 
+export interface Photo {
+  id: string;
+  url: string;
+  order: number;
+  is_primary: boolean;
+}
+
+export interface Prompt {
+  id: string;
+  profile_id: string;
+  question: string;
+  answer: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
+  user_id: string;
   name: string;
-  bio: string;
-  gender?: string;
-  sexuality?: string;
-  age?: number;
-  age_range_min?: number;
-  age_range_max?: number;
+  age: number;
+  gender: string;
+  height: string;
+  bio?: string;
+  photos?: Photo[];
+  prompts?: Prompt[];
+  featured_prompt_id?: string;
   religion?: string;
   politics?: string;
-  height?: string;
-  // Location fields
-  latitude?: number;
-  longitude?: number;
   city?: string;
   state?: string;
-  distance_preference?: number; // in miles
+  latitude?: number;
+  longitude?: number;
+  distance_preference?: number;
   dating_intentions?: string;
   relationship_type?: string;
   drinking_frequency?: string;
   drugs_frequency?: string;
-  dealBreakers?: {
-    gender?: string[];
-    sexuality?: string[];
-    age_range_min?: number;
-    age_range_max?: number;
-    religion?: string[];
-    politics?: string[];
-    height?: string[];
-  };
-  avatar_url?: string;
-  photos?: {
-    id: string;
-    url: string;
-    order: number;
-    is_primary: boolean;
-  }[];
-  prompts?: { question: string; answer: string }[];
-  weekly_availability?: string[];
-  push_token?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export type Match = {
-    id: string;
-    user1_id: string;
-    user2_id: string;
-  status: string;
-  confirmed_mode?: 'video' | 'inperson';
-  confirmed_at?: string;
-  proposed_time?: string;
-  proposed_by?: string;
-  user1_profile?: { name: string };
-  user2_profile?: { name: string };
-    partnerName?: string;
-};
-
-export type Prompt = {
-  question: string;
-  answer: string;
-};
+export interface Match {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  user1_name?: string;
+  user2_name?: string;
+  status: 'unscheduled' | 'proposed' | 'scheduled';
+  meeting_type?: 'in-person' | 'video';
+  suggested_activity?: string;
+  suggested_venue?: string;
+  user1_proposed_time?: string;
+  user2_proposed_time?: string;
+  created_at: string;
+  updated_at: string;
+  other_user_profile: Profile;
+}
 
 export type AvailabilitySlot = string;
 
-export type MatchWithProfiles = Match;
+// Union types for better type safety
+export type MeetingType = 'in-person' | 'video';
+export type MatchStatus = 'unscheduled' | 'proposed' | 'scheduled';
