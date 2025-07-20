@@ -53,12 +53,27 @@ export default function LikesScreen() {
                 .eq('liked', true)
                 .order('created_at', { ascending: false });
 
+            // Get user's matches to exclude them from likes
+            const { data: userMatches } = await supabase
+                .from('matches')
+                .select('user1_id, user2_id')
+                .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+            const matchedUserIds = userMatches?.map(match =>
+                match.user1_id === userId ? match.user2_id : match.user1_id
+            ) || [];
+
+            // Filter out people you've already matched with
+            const filteredSwipes = swipes?.filter(swipe =>
+                !matchedUserIds.includes(swipe.swiper_id)
+            ) || [];
+
             if (error) {
                 console.error('Error fetching incoming swipes:', error);
                 return;
             }
 
-            setIncomingSwipes(swipes || []);
+            setIncomingSwipes(filteredSwipes);
         } catch (error) {
             console.error('Error in fetchIncomingSwipes:', error);
         } finally {
