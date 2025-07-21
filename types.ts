@@ -67,6 +67,5 @@ export interface Match {
 
 export type AvailabilitySlot = string;
 
-// Union types for better type safety
 export type MeetingType = 'in-person' | 'video';
 export type MatchStatus = 'unscheduled' | 'proposed' | 'scheduled';

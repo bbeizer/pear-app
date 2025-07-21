@@ -2,14 +2,24 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { supabase } from 'lib/supabaseClient';
 import { useRouter } from 'expo-router';
-const router = useRouter();
 
 export default function Signup() {
+    const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSignup = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+
+        if (password.length < 6) {
+            Alert.alert('Error', 'Password must be at least 6 characters');
+            return;
+        }
+
         setLoading(true);
         const { error } = await supabase.auth.signUp({
             email,
@@ -19,7 +29,12 @@ export default function Signup() {
         if (error) {
             Alert.alert('Sign-up Error', error.message);
         } else {
-            Alert.alert('Success 🎉', 'Signup complete. Check your email!');
+            Alert.alert('Success 🎉', 'Signup complete. Check your email!', [
+                {
+                    text: 'OK',
+                    onPress: () => router.push('/auth/Login'),
+                },
+            ]);
         }
 
         setLoading(false);

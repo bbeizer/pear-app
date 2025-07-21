@@ -6,30 +6,46 @@ import { supabase } from '../../lib/supabaseClient';
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
 
     const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+
+        setLoading(true);
         console.log('Attempting login with:', email);
+
         try {
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) {
                 console.log('Login error:', error.message);
                 Alert.alert('Login Error', error.message);
             } else {
                 console.log('Login successful!');
-                Alert.alert('Login Success', 'You have successfully logged in!', [
-                    {
-                        text: 'OK',
-                        onPress: () => {
-                            // Change this route if you want to go somewhere else after login
-                            router.replace('/main/ProfileSetup');
-                        },
-                    },
-                ]);
+
+                // Check if user has a profile
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('id', data.user?.id)
+                    .single();
+
+                if (profile) {
+                    // User has profile, go to main app
+                    router.replace('/main/');
+                } else {
+                    // User needs to set up profile
+                    router.replace('/main/ProfileSetup');
+                }
             }
         } catch (e) {
             console.log('Unexpected error during login:', e);
             Alert.alert('Unexpected Error', 'Something went wrong. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -56,7 +72,11 @@ export default function Login() {
                 style={styles.input}
             />
 
-            <Button title="Login" onPress={handleLogin} />
+            <Button
+                title={loading ? 'Logging in...' : 'Login'}
+                onPress={handleLogin}
+                disabled={loading}
+            />
             <View style={styles.footer}>
                 <Text>
                     Don’t have an account?{' '}

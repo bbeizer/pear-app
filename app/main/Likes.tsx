@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
 import type { Profile } from '../../types';
 import { useHaptics } from '../../lib/hooks/useHaptics';
 import { createMatch } from '../../lib/supabaseUtils';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import IncomingSwipeCard from '../components/IncomingSwipeCard';
 
 interface IncomingSwipe {
     id: string;
@@ -28,6 +27,7 @@ export default function LikesScreen() {
     const [showVideoDeferral, setShowVideoDeferral] = useState(false);
     const [deferralMessage, setDeferralMessage] = useState('');
     const [slideAnim] = useState(new Animated.Value(0));
+
     const router = useRouter();
     const { lightImpact, successNotification } = useHaptics();
 
@@ -53,6 +53,11 @@ export default function LikesScreen() {
                 .eq('liked', true)
                 .order('created_at', { ascending: false });
 
+            if (error) {
+                console.error('Error fetching incoming swipes:', error);
+                return;
+            }
+
             // Get user's matches to exclude them from likes
             const { data: userMatches } = await supabase
                 .from('matches')
@@ -67,11 +72,6 @@ export default function LikesScreen() {
             const filteredSwipes = swipes?.filter(swipe =>
                 !matchedUserIds.includes(swipe.swiper_id)
             ) || [];
-
-            if (error) {
-                console.error('Error fetching incoming swipes:', error);
-                return;
-            }
 
             setIncomingSwipes(filteredSwipes);
         } catch (error) {
@@ -116,6 +116,7 @@ export default function LikesScreen() {
 
             if (error) {
                 console.error('Error creating swipe:', error);
+                Alert.alert('Error', 'Failed to record your response. Please try again.');
                 return;
             }
 
@@ -130,7 +131,6 @@ export default function LikesScreen() {
                         currentSwipe.suggested_venue
                     );
 
-                    // Show success message - match will appear in Matches tab
                     console.log('Match created successfully!');
                 } catch (matchError) {
                     console.error('Error creating match:', matchError);
@@ -142,6 +142,7 @@ export default function LikesScreen() {
             successNotification();
         } catch (error) {
             console.error('Error handling swipe:', error);
+            Alert.alert('Error', 'Something went wrong. Please try again.');
         }
     };
 
@@ -169,6 +170,7 @@ export default function LikesScreen() {
 
             if (error) {
                 console.error('Error creating video deferral swipe:', error);
+                Alert.alert('Error', 'Failed to send video request. Please try again.');
                 return;
             }
 
@@ -186,13 +188,14 @@ export default function LikesScreen() {
             successNotification();
         } catch (error) {
             console.error('Error handling video deferral:', error);
+            Alert.alert('Error', 'Something went wrong. Please try again.');
         }
     };
 
     if (loading) {
         return (
             <View style={styles.container}>
-                <Text style={styles.title}>Loading...</Text>
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         );
     }
@@ -200,29 +203,66 @@ export default function LikesScreen() {
     if (currentIndex >= incomingSwipes.length) {
         return (
             <View style={styles.container}>
-                <Text style={styles.title}>Likes</Text>
-                <Text style={styles.subtitle}>You've seen all your likes!</Text>
                 <View style={styles.emptyState}>
                     <Ionicons name="heart-outline" size={64} color="#ccc" />
-                    <Text style={styles.emptyStateText}>
-                        When someone likes you, they'll appear here with their date preferences!
+                    <Text style={styles.emptyTitle}>No More Likes</Text>
+                    <Text style={styles.emptySubtitle}>
+                        You've responded to all your incoming likes!
                     </Text>
+                    <TouchableOpacity
+                        style={styles.refreshButton}
+                        onPress={fetchIncomingSwipes}
+                    >
+                        <Text style={styles.refreshText}>Check for New Likes</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         );
     }
 
     const currentSwipe = incomingSwipes[currentIndex];
-    const profile = currentSwipe.swiper_profile;
-    const photos = profile.photos || [];
-    const primaryPhoto = photos.find(p => p.is_primary) || photos[0];
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Likes</Text>
-            <Text style={styles.subtitle}>
-                {currentIndex + 1} of {incomingSwipes.length}
-            </Text>
+            {/* Header */}
+            <View style={styles.header}>
+                <Text style={styles.title}>Likes</Text>
+                <Text style={styles.subtitle}>
+                    {currentIndex + 1} of {incomingSwipes.length}
+                </Text>
+            </View>
+
+            {/* Swipe Card */}
+            <View style={styles.cardContainer}>
+                <IncomingSwipeCard
+                    swipe={currentSwipe}
+                    slideAnim={slideAnim}
+                />
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.passButton]}
+                    onPress={() => handleSwipe(false)}
+                >
+                    <Ionicons name="close" size={32} color="#FF6B6B" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.videoButton]}
+                    onPress={handleVideoDeferral}
+                >
+                    <Ionicons name="videocam" size={24} color="#007AFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.likeButton]}
+                    onPress={() => handleSwipe(true)}
+                >
+                    <Ionicons name="heart" size={32} color="#00C48C" />
+                </TouchableOpacity>
+            </View>
 
             {/* Video Deferral Message */}
             {showVideoDeferral && (
@@ -230,253 +270,83 @@ export default function LikesScreen() {
                     <Text style={styles.deferralText}>{deferralMessage}</Text>
                 </View>
             )}
-
-            {/* Profile Card */}
-            <Animated.View
-                style={[
-                    styles.profileCard,
-                    {
-                        transform: [{ translateX: slideAnim }]
-                    }
-                ]}
-            >
-                {/* Profile Photo */}
-                <View style={styles.photoContainer}>
-                    {primaryPhoto ? (
-                        <Image
-                            source={{ uri: primaryPhoto.url }}
-                            style={styles.profilePhoto}
-                            resizeMode="cover"
-                        />
-                    ) : (
-                        <View style={styles.placeholderPhoto}>
-                            <Ionicons name="person" size={40} color="#ccc" />
-                        </View>
-                    )}
-                </View>
-
-                {/* Profile Info */}
-                <View style={styles.profileInfo}>
-                    <Text style={styles.profileName}>{profile.name}</Text>
-                    <Text style={styles.profileDetails}>
-                        {profile.age} • {profile.gender} • {profile.height}
-                    </Text>
-                    {profile.bio && (
-                        <Text style={styles.profileBio} numberOfLines={3}>
-                            {profile.bio}
-                        </Text>
-                    )}
-
-                    {/* Date Preference */}
-                    {currentSwipe.suggested_meeting_type && (
-                        <View style={styles.datePreference}>
-                            <Ionicons
-                                name={currentSwipe.suggested_meeting_type === 'video' ? 'videocam' : 'location'}
-                                size={16}
-                                color="#00C48C"
-                            />
-                            <Text style={styles.datePreferenceText}>
-                                {currentSwipe.suggested_meeting_type === 'video' ? 'Video Call' : 'In Person'}
-                            </Text>
-                        </View>
-                    )}
-
-                    {/* Suggested Activity/Venue */}
-                    {currentSwipe.suggested_activity && (
-                        <View style={styles.suggestedActivity}>
-                            <Text style={styles.suggestedActivityText}>
-                                💡 {currentSwipe.suggested_activity}
-                            </Text>
-                        </View>
-                    )}
-                    {currentSwipe.suggested_venue && (
-                        <View style={styles.suggestedVenue}>
-                            <Text style={styles.suggestedVenueText}>
-                                📍 {currentSwipe.suggested_venue}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.passButton]}
-                        onPress={() => handleSwipe(false)}
-                    >
-                        <Ionicons name="close" size={24} color="#FF6B6B" />
-                    </TouchableOpacity>
-
-                    {/* Video Deferral Button (only for in-person requests) */}
-                    {currentSwipe.suggested_meeting_type === 'in-person' && (
-                        <TouchableOpacity
-                            style={[styles.actionButton, styles.videoButton]}
-                            onPress={handleVideoDeferral}
-                        >
-                            <Text style={styles.videoButtonText}>Propose Video</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.likeButton]}
-                        onPress={() => handleSwipe(true)}
-                    >
-                        <Text style={styles.pearEmoji}>🍐</Text>
-                    </TouchableOpacity>
-                </View>
-            </Animated.View>
-
-            {/* Stack Preview */}
-            {incomingSwipes.length > 1 && (
-                <View style={styles.stackPreview}>
-                    {incomingSwipes.slice(currentIndex + 1, currentIndex + 4).map((_, index) => (
-                        <View
-                            key={index}
-                            style={[
-                                styles.stackCard,
-                                {
-                                    transform: [{ translateY: index * 4 }],
-                                    opacity: 1 - (index * 0.3)
-                                }
-                            ]}
-                        />
-                    ))}
-                </View>
-            )}
         </View>
     );
 }
 
+const { width: screenWidth } = require('react-native').Dimensions.get('window');
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#f8f9fa',
+    },
+    header: {
+        padding: 20,
         paddingTop: 60,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
     },
     title: {
         fontSize: 28,
         fontWeight: '700',
         color: '#1A1A1A',
-        textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: 4,
     },
     subtitle: {
         fontSize: 16,
         color: '#666',
-        textAlign: 'center',
-        marginBottom: 24,
     },
-    deferralMessage: {
-        backgroundColor: '#007AFF',
-        marginHorizontal: 20,
-        marginBottom: 20,
-        padding: 16,
-        borderRadius: 12,
-    },
-    deferralText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+    loadingText: {
+        fontSize: 18,
         textAlign: 'center',
+        marginTop: 200,
+        color: '#666',
     },
     emptyState: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 40,
+        padding: 40,
     },
-    emptyStateText: {
-        fontSize: 16,
-        color: '#999',
-        textAlign: 'center',
+    emptyTitle: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: '#1A1A1A',
         marginTop: 16,
-        lineHeight: 24,
+        marginBottom: 8,
     },
-    profileCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        marginHorizontal: 20,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 12,
-        elevation: 5,
-        overflow: 'hidden',
-        zIndex: 10,
+    emptySubtitle: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 24,
     },
-    photoContainer: {
-        height: 300,
-        backgroundColor: '#f8f9fa',
+    refreshButton: {
+        backgroundColor: '#00C48C',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
     },
-    profilePhoto: {
-        width: '100%',
-        height: '100%',
+    refreshText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
-    placeholderPhoto: {
-        width: '100%',
-        height: '100%',
+    cardContainer: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-    },
-    profileInfo: {
         padding: 20,
-    },
-    profileName: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#1A1A1A',
-        marginBottom: 4,
-    },
-    profileDetails: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 8,
-    },
-    profileBio: {
-        fontSize: 15,
-        color: '#444',
-        lineHeight: 20,
-        marginBottom: 12,
-    },
-    datePreference: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f0f9ff',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-        alignSelf: 'flex-start',
-        marginBottom: 8,
-    },
-    datePreferenceText: {
-        fontSize: 14,
-        color: '#00C48C',
-        fontWeight: '600',
-        marginLeft: 6,
-    },
-    suggestedActivity: {
-        marginBottom: 4,
-    },
-    suggestedActivityText: {
-        fontSize: 14,
-        color: '#666',
-        fontStyle: 'italic',
-    },
-    suggestedVenue: {
-        marginBottom: 12,
-    },
-    suggestedVenueText: {
-        fontSize: 14,
-        color: '#666',
-        fontStyle: 'italic',
     },
     actionButtons: {
         flexDirection: 'row',
         justifyContent: 'space-evenly',
+        alignItems: 'center',
         paddingHorizontal: 20,
-        paddingBottom: 20,
-        gap: 20,
+        paddingBottom: 40,
+        backgroundColor: '#fff',
     },
     actionButton: {
         width: 60,
@@ -484,46 +354,42 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#fff',
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
     passButton: {
-        backgroundColor: '#fff',
         borderWidth: 2,
         borderColor: '#FF6B6B',
     },
     videoButton: {
-        backgroundColor: '#fff',
         borderWidth: 2,
         borderColor: '#007AFF',
     },
     likeButton: {
-        backgroundColor: '#fff',
         borderWidth: 2,
         borderColor: '#00C48C',
     },
-    pearEmoji: {
-        fontSize: 24,
-    },
-    stackPreview: {
+    deferralMessage: {
         position: 'absolute',
-        top: 120,
+        bottom: 120,
         left: 20,
         right: 20,
-        zIndex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
     },
-    stackCard: {
-        backgroundColor: '#f0f0f0',
-        borderRadius: 20,
-        height: 400,
-        marginBottom: 4,
-    },
-    videoButtonText: {
-        color: '#007AFF',
-        fontWeight: '600',
-        fontSize: 16,
+    deferralText: {
+        color: '#fff',
+        fontSize: 14,
+        textAlign: 'center',
+        fontWeight: '500',
     },
 });
