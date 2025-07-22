@@ -6,6 +6,7 @@ import {
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
+import { colors } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import type { Match } from '../../types';
 
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     },
     meetingTypeText: {
         fontSize: 12,
-        color: '#00C48C',
+        color: colors.primaryGreen,
         fontWeight: '600',
         marginLeft: 4,
     },

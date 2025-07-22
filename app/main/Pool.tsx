@@ -5,6 +5,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Alert,
+    ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,9 +13,11 @@ import { supabase } from '../../lib/supabaseClient';
 import { useRouter } from 'expo-router';
 import type { Profile } from '../../types';
 import { useHaptics } from '../../lib/hooks/useHaptics';
+import { colors } from '../../theme/colors';
 
 // Import our new components
-import SwipeCard from '../components/SwipeCard';
+import ProfileInfoCard from '../components/ProfileInfoCard';
+import PoolImageCard from '../components/PoolImageCard';
 import ActionButtons from '../components/ActionButtons';
 import DiscoveryFilters from '../components/DiscoveryFilters';
 
@@ -236,7 +239,7 @@ export default function Pool() {
                 style={styles.discoverySettingsButton}
                 onPress={() => setShowDiscoverySettings(true)}
             >
-                <Ionicons name="filter" size={20} color="#00C48C" />
+                <Ionicons name="filter" size={20} color={colors.primaryGreen} />
                 {profiles.length > 0 && (
                     <View style={styles.filterBadge}>
                         <Text style={styles.filterBadgeText}>{profiles.length}</Text>
@@ -244,8 +247,14 @@ export default function Pool() {
                 )}
             </TouchableOpacity>
 
-            {/* Profile Card */}
-            <SwipeCard profile={currentProfile} />
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+                <ProfileInfoCard profile={currentProfile} />
+                {currentProfile.photos && currentProfile.photos.length > 0 && (
+                    currentProfile.photos.map((photo, idx) => (
+                        <PoolImageCard key={photo.url + idx} photo={photo} />
+                    ))
+                )}
+            </ScrollView>
 
             {/* Action Buttons */}
             <ActionButtons
@@ -311,7 +320,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -5,
         right: -5,
-        backgroundColor: '#34C159',
+        backgroundColor: colors.primaryGreen,
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -330,7 +339,7 @@ const styles = StyleSheet.create({
         marginTop: 200,
     },
     refreshButton: {
-        backgroundColor: '##34C159',
+        backgroundColor: colors.primaryGreen,
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 8,

@@ -6,6 +6,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../theme/colors';
 
 interface ActionButtonsProps {
     onPass: () => void;
@@ -33,7 +34,7 @@ export default function ActionButtons({
                 style={[
                     styles.actionButton,
                     styles.likeButton,
-                    { borderWidth: 2, borderColor: '#34C159' }
+                    { borderWidth: 2, borderColor: colors.primaryGreen }
                 ]}
                 onPress={onLike}
                 disabled={disabled}

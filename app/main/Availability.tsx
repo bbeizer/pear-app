@@ -49,7 +49,7 @@ export default function Availability(): JSX.Element {
     if (isLoading) {
         return (
             <View style={[styles.wrapper, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={colors.green} />
+                <ActivityIndicator size="large" color={colors.primaryGreen} />
                 <Text style={[styles.title, { marginTop: 16 }]}>Loading availability...</Text>
             </View>
         );
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
         zIndex: 2,
     },
     headerText: {
-        color: colors.green,
+        color: colors.primaryGreen,
         fontSize: 13,
         fontWeight: '600',
     },
@@ -229,13 +229,13 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         alignItems: 'center',
-        backgroundColor: colors.green,
+        backgroundColor: colors.primaryGreen,
         borderRadius: 8,
         elevation: 2,
         minWidth: 120,
         paddingHorizontal: 32,
         paddingVertical: 12,
-        shadowColor: colors.green,
+        shadowColor: colors.primaryGreen,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 4,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     selectedCell: {
-        backgroundColor: colors.green,
+        backgroundColor: colors.primaryGreen,
         borderColor: colors.greenDark,
     },
     timeLabel: {
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
         width: LABEL_WIDTH,
     },
     timeText: {
-        color: colors.green,
+        color: colors.primaryGreen,
         fontSize: 11,
         fontWeight: '600',
     },

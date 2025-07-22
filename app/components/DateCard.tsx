@@ -5,6 +5,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import type { Match } from '../../types';
+import { colors } from '../../theme/colors';
 
 interface CalendarMatch extends Match {
     partnerName: string;
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
     },
     partnerName: {
         fontWeight: '600',
-        color: '#00C48C',
+        color: colors.primaryGreen,
     },
     video: {
         color: '#007AFF',

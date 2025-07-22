@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     },
     likeButton: {
         borderWidth: 2,
-        borderColor: '#00C48C',
+        borderColor: colors.primaryGreen,
     },
     deferralMessage: {
         position: 'absolute',

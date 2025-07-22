@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabaseClient';
 import type { Profile, Match } from '../../types';
 import { useHaptics } from '../../lib/hooks/useHaptics';
+import { colors } from '../../theme/colors';
 
 
 // No separate TimeProposal interface needed - proposal data is in the match object
@@ -104,7 +105,7 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
         switch (status) {
             case 'unscheduled': return '#999';
             case 'proposed': return '#007AFF';
-            case 'scheduled': return '#00C48C';
+            case 'scheduled': return colors.primaryGreen;
             default: return '#666';
         }
     };
@@ -284,7 +285,7 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
                                 <Ionicons
                                     name={match.meeting_type === 'video' ? 'videocam' : 'location'}
                                     size={16}
-                                    color="#00C48C"
+                                    color={colors.primaryGreen}
                                 />
                                 <Text style={styles.meetingTypeText}>
                                     {match.meeting_type === 'video' ? 'Video Call' : 'In Person'}
@@ -307,7 +308,7 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
 
                     {loading ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#00C48C" />
+                            <ActivityIndicator size="large" color={colors.primaryGreen} />
                             <Text style={styles.loadingText}>Loading availability...</Text>
                         </View>
                     ) : (
@@ -344,7 +345,7 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
                                                 );
                                             }}
                                         >
-                                            <Ionicons name="time-outline" size={20} color="#00C48C" />
+                                            <Ionicons name="time-outline" size={20} color={colors.primaryGreen} />
                                             <Text style={styles.proposeOwnTimeText}>Propose Your Available Time</Text>
                                         </TouchableOpacity>
 
@@ -576,7 +577,7 @@ const styles = StyleSheet.create({
     },
     meetingTypeText: {
         fontSize: 14,
-        color: '#00C48C',
+        color: colors.primaryGreen,
         fontWeight: '600',
         marginLeft: 6,
     },
@@ -639,11 +640,11 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#00C48C',
+        borderColor: colors.primaryGreen,
     },
     proposeOwnTimeText: {
         fontSize: 14,
-        color: '#00C48C',
+        color: colors.primaryGreen,
         fontWeight: '600',
         marginLeft: 8,
     },
@@ -677,8 +678,8 @@ const styles = StyleSheet.create({
         borderColor: '#e0e0e0',
     },
     selectedTime: {
-        backgroundColor: '#00C48C',
-        borderColor: '#00C48C',
+        backgroundColor: colors.primaryGreen,
+        borderColor: colors.primaryGreen,
     },
     timeText: {
         fontSize: 14,
@@ -738,7 +739,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     acceptButton: {
-        backgroundColor: '#00C48C',
+        backgroundColor: colors.primaryGreen,
     },
     declineButton: {
         backgroundColor: '#FF6B6B',
@@ -749,7 +750,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     proposeButton: {
-        backgroundColor: '#00C48C',
+        backgroundColor: colors.primaryGreen,
         paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',

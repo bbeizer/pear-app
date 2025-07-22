@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { GestureResponderEvent } from 'react-native';
 import { useHaptics } from './useHaptics';
 import { supabase } from '../supabaseClient';
+import { colors } from '../../theme/colors';
 
 export const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const hours = Array.from({ length: 30 }, (_, i) => {
@@ -168,7 +169,7 @@ export function useAvailabilityGrid() {
     };
 
     const getCellStyle = (active: boolean, pressed: boolean) => [
-        active ? { backgroundColor: '#34C159', borderColor: '#28a745' } : {},
+        active ? { backgroundColor: colors.primaryGreen, borderColor: colors.greenDark } : {},
         pressed ? { opacity: 0.7, transform: [{ scale: 0.97 }] } : {},
     ];
 
