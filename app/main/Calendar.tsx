@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { Match } from '../../types';
 import { fetchUserMatches } from '../../lib/supabaseUtils';
 import DateCard from '../components/DateCard';
+import { colors } from '../../theme/colors';
 
 interface CalendarMatch extends Match {
     partnerName: string;

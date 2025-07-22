@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated } from 'react
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../theme/colors';
 import type { Profile } from '../../types';
 import { useHaptics } from '../../lib/hooks/useHaptics';
 import { createMatch } from '../../lib/supabaseUtils';
@@ -204,7 +205,6 @@ export default function LikesScreen() {
         return (
             <View style={styles.container}>
                 <View style={styles.emptyState}>
-                    <Ionicons name="heart-outline" size={64} color="#ccc" />
                     <Text style={styles.emptyTitle}>No More Likes</Text>
                     <Text style={styles.emptySubtitle}>
                         You've responded to all your incoming likes!
@@ -260,7 +260,7 @@ export default function LikesScreen() {
                     style={[styles.actionButton, styles.likeButton]}
                     onPress={() => handleSwipe(true)}
                 >
-                    <Ionicons name="heart" size={32} color="#00C48C" />
+                    <Text style={styles.pearEmoji}>🍐</Text>
                 </TouchableOpacity>
             </View>
 
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     refreshButton: {
-        backgroundColor: '#00C48C',
+        backgroundColor: colors.primaryGreen,
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 8,
@@ -391,5 +391,9 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textAlign: 'center',
         fontWeight: '500',
+    },
+    pearEmoji: {
+        fontSize: 32,
+        color: colors.primaryGreen,
     },
 });

@@ -6,9 +6,11 @@ import {
     Image,
     StyleSheet,
     Alert,
+    Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../theme/colors';
 
 interface ImageUploaderProps {
     images: (string | null)[];
@@ -58,15 +60,16 @@ export default function ImageUploader({
                             style={styles.removeButton}
                             onPress={() => handleRemoveImage(index)}
                         >
-                            <Ionicons name="close-circle" size={24} color="#FF6B6B" />
+                            <Ionicons name="close" size={20} color="#fff" />
                         </TouchableOpacity>
                     </View>
                 ) : (
                     <TouchableOpacity
                         style={styles.addButton}
                         onPress={() => handleAddImage(index)}
+                        activeOpacity={0.8}
                     >
-                        <Ionicons name="add" size={32} color="#ccc" />
+                        <Ionicons name="add" size={32} />
                         <Text style={styles.addButtonText}>Add Photo</Text>
                     </TouchableOpacity>
                 )}
@@ -74,74 +77,132 @@ export default function ImageUploader({
         );
     };
 
+    const SCREEN_WIDTH = Dimensions.get('window').width;
+    const CARD_HORIZONTAL_PADDING = 12 * 2 + 20 * 2; // cardWrapper + card padding
+    const GRID_GAP = 16 * 2; // two gaps per row
+    const SLOT_SIZE = Math.floor((SCREEN_WIDTH - CARD_HORIZONTAL_PADDING - GRID_GAP) / 3);
+
+    const styles = StyleSheet.create({
+        cardWrapper: {
+            marginTop: 24,
+            marginBottom: 32,
+            paddingHorizontal: 12,
+        },
+        card: {
+            backgroundColor: '#fff',
+            borderRadius: 18,
+            padding: 20,
+            shadowColor: '#000',
+            shadowOpacity: 0.08,
+            shadowOffset: { width: 0, height: 4 },
+            shadowRadius: 12,
+            elevation: 3,
+        },
+        title: {
+            fontSize: 18,
+            fontWeight: '700',
+            marginBottom: 4,
+            color: '#1A1A1A',
+            textAlign: 'left',
+        },
+        subtitle: {
+            fontSize: 13,
+            color: '#9ca3af',
+            marginBottom: 18,
+            textAlign: 'left',
+            fontWeight: '500',
+        },
+        imageGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: 16,
+        },
+        imageSlot: {
+            width: SLOT_SIZE,
+            height: SLOT_SIZE,
+            marginBottom: 20,
+            borderRadius: 16,
+            backgroundColor: colors.gray50,
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOpacity: 0.06,
+            shadowOffset: { width: 0, height: 2 },
+            shadowRadius: 6,
+        },
+        addButton: {
+            width: SLOT_SIZE,
+            height: SLOT_SIZE,
+            borderWidth: 2,
+            borderColor: colors.gray100,
+            borderStyle: 'dashed',
+            borderRadius: 14,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.gray50,
+        },
+        addButtonText: {
+            fontSize: 12,
+            color: colors.gray300,
+            marginTop: 4,
+            fontWeight: '600',
+        },
+        imageContainer: {
+            position: 'relative',
+            width: SLOT_SIZE,
+            height: SLOT_SIZE,
+            borderRadius: 14,
+            overflow: 'hidden',
+            backgroundColor: colors.gray50,
+            shadowColor: '#000',
+            shadowOpacity: 0.10,
+            shadowOffset: { width: 0, height: 2 },
+            shadowRadius: 8,
+        },
+        image: {
+            width: SLOT_SIZE,
+            height: SLOT_SIZE,
+            borderRadius: 14,
+        },
+        removeButton: {
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            borderRadius: 12,
+            padding: 3,
+            zIndex: 2,
+        },
+        primaryBadge: {
+            position: 'absolute',
+            bottom: 6,
+            left: 6,
+            backgroundColor: colors.primaryGreen,
+            borderRadius: 8,
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            zIndex: 2,
+        },
+        primaryBadgeText: {
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 0.5,
+        },
+    });
+
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Photos</Text>
-            <Text style={styles.subtitle}>
-                Add up to {maxImages} photos. First photo will be your main photo.
-            </Text>
-            <View style={styles.imageGrid}>
-                {Array.from({ length: maxImages }, (_, index) => renderImageSlot(index))}
+        <View style={styles.cardWrapper}>
+            <View style={styles.card}>
+                <Text style={styles.title}>Photos</Text>
+                <Text style={styles.subtitle}>
+                    Add up to {maxImages} photos. First photo will be your main photo.
+                </Text>
+                <View style={styles.imageGrid}>
+                    {Array.from({ length: maxImages }, (_, index) => renderImageSlot(index))}
+                </View>
             </View>
         </View>
     );
-}
-
-const styles = StyleSheet.create({
-    container: {
-        marginBottom: 24,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 8,
-        color: '#1A1A1A',
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 16,
-    },
-    imageGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    imageSlot: {
-        width: 100,
-        height: 100,
-    },
-    addButton: {
-        width: 100,
-        height: 100,
-        borderWidth: 2,
-        borderColor: '#e0e0e0',
-        borderStyle: 'dashed',
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-    },
-    addButtonText: {
-        fontSize: 12,
-        color: '#999',
-        marginTop: 4,
-    },
-    imageContainer: {
-        position: 'relative',
-        width: 100,
-        height: 100,
-    },
-    image: {
-        width: 100,
-        height: 100,
-        borderRadius: 12,
-    },
-    removeButton: {
-        position: 'absolute',
-        top: -8,
-        right: -8,
-        backgroundColor: 'white',
-        borderRadius: 12,
-    },
-}); 
+} 

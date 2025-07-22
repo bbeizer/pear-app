@@ -23,7 +23,7 @@ export default function MatchCard({ match, onPress }: MatchCardProps) {
         switch (item.status) {
             case 'unscheduled': return '#999'; // Grey
             case 'proposed': return '#007AFF'; // Blue
-            case 'scheduled': return '#00C48C'; // Green
+            case 'scheduled': return '#34C159'; // Green
             default: return '#999';
         }
     };
@@ -76,7 +76,7 @@ export default function MatchCard({ match, onPress }: MatchCardProps) {
                         <Ionicons
                             name={match.meeting_type === 'video' ? 'videocam' : 'location'}
                             size={16}
-                            color="#00C48C"
+                            color="#34C159"
                         />
                         <Text style={styles.meetingTypeText}>
                             {match.meeting_type === 'video' ? 'Video Call' : 'In Person'}

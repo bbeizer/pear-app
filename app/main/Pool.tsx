@@ -289,7 +289,6 @@ export default function Pool() {
 const styles = StyleSheet.create({
     absoluteContainer: {
         flex: 1,
-        backgroundColor: '#000',
     },
     discoverySettingsButton: {
         position: 'absolute',
@@ -312,7 +311,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -5,
         right: -5,
-        backgroundColor: '#FF6B6B',
+        backgroundColor: '#34C159',
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -331,7 +330,7 @@ const styles = StyleSheet.create({
         marginTop: 200,
     },
     refreshButton: {
-        backgroundColor: '#00C48C',
+        backgroundColor: '##34C159',
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 8,

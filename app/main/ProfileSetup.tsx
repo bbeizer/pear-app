@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import {
-    View, Text, Button, StyleSheet, ScrollView, Alert,
+    View, Text, Button, StyleSheet, ScrollView, Alert, TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../../lib/supabaseClient';
 import { useRouter } from 'expo-router';
 import { useSupabaseUser } from '../../lib/hooks/useSupabaseUser';
 import { useRegisterPushToken } from '../../lib/hooks/useRegisterPushToken';
 import type { Profile } from '../../types';
+import { colors } from '../../theme/colors';
 
 // Import our new components
 import ImageUploader from '../components/ImageUploader';
@@ -200,11 +201,6 @@ export default function ProfileSetup() {
         }
     };
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-        router.replace('/auth/Login');
-    };
-
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
@@ -265,19 +261,16 @@ export default function ProfileSetup() {
 
             {/* Action Buttons */}
             <View style={styles.actions}>
-                <Button
-                    title={loading ? 'Saving...' : 'Save Profile'}
+                <TouchableOpacity
+                    style={[styles.saveButton, loading && styles.saveButtonDisabled]}
                     onPress={handleSave}
                     disabled={loading}
-                />
-
-                <View style={styles.logoutContainer}>
-                    <Button
-                        title="Logout"
-                        onPress={handleLogout}
-                        color="#FF6B6B"
-                    />
-                </View>
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.saveButtonText}>
+                        {loading ? 'Saving...' : 'Save Profile'}
+                    </Text>
+                </TouchableOpacity>
             </View>
         </ScrollView>
     );
@@ -310,6 +303,27 @@ const styles = StyleSheet.create({
     actions: {
         padding: 20,
         gap: 16,
+    },
+    saveButton: {
+        backgroundColor: colors.primaryGreen,
+        paddingVertical: 16,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: colors.primaryGreen,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+    },
+    saveButtonDisabled: {
+        backgroundColor: '#b2e9d3',
+    },
+    saveButtonText: {
+        backgroundColor: colors.primaryGreen,
+        color: "white",
+        fontSize: 18,
+        fontWeight: '700',
+        letterSpacing: 0.5,
     },
     logoutContainer: {
         marginTop: 8,

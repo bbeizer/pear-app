@@ -7,6 +7,7 @@ export const colors = {
   gray300: '#bdbdbd',
   gray700: '#495057',
   gray900: '#222',
+  primaryGreen: '#34C159',
   green: '#34C159',
   greenDark: '#28a745',
 }; 

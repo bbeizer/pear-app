@@ -8,6 +8,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../theme/colors';
 
 const ALL_PROMPTS = [
     "I'm weirdly attracted to...",
@@ -80,7 +81,7 @@ export default function PromptSelector({
                     {prompt}
                 </Text>
                 {isSelected && (
-                    <Ionicons name="checkmark-circle" size={20} color="#00C48C" />
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primaryGreen} />
                 )}
             </TouchableOpacity>
         );
@@ -169,8 +170,8 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     selectedPrompt: {
-        backgroundColor: '#00C48C',
-        borderColor: '#00C48C',
+        backgroundColor: colors.primaryGreen,
+        borderColor: colors.primaryGreen,
     },
     promptText: {
         fontSize: 14,

@@ -97,7 +97,7 @@ export default function Availability(): JSX.Element {
                                                 key={key}
                                                 style={[
                                                     styles.cell,
-                                                    { backgroundColor: active ? colors.green : colors.gray200 },
+                                                    { backgroundColor: active ? colors.primaryGreen : colors.gray200 },
                                                     { borderColor: colors.gray300 },
                                                 ]}
                                                 onPressIn={() => handleCellPressIn(key)}

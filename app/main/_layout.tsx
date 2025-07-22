@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabaseClient';
+import { colors } from '../../theme/colors';
 
 export default function MainLayout() {
     const [unreadLikesCount, setUnreadLikesCount] = useState(0);
@@ -91,7 +92,7 @@ export default function MainLayout() {
                                 )}
                             </View>
                         ),
-                        tabBarActiveTintColor: '#00C48C',
+                        tabBarActiveTintColor: colors.primaryGreen,
                         tabBarInactiveTintColor: 'gray',
                         headerShown: false,
                     };
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -5,
         right: -8,
-        backgroundColor: '#FF6B6B',
+        backgroundColor: colors.primaryGreen,
         borderRadius: 10,
         minWidth: 20,
         height: 20,

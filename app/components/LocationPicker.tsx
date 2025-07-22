@@ -10,6 +10,7 @@ import {
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
+import { colors } from '../../theme/colors';
 
 interface LocationPickerProps {
     latitude: number | null;
@@ -92,7 +93,7 @@ export default function LocationPicker({
                     <Ionicons
                         name={locationPermission ? "location" : "location-outline"}
                         size={24}
-                        color={locationPermission ? "#00C48C" : "#999"}
+                        color={locationPermission ? colors.primaryGreen : "#999"}
                     />
                     <Text style={styles.permissionText}>
                         {locationPermission ? 'Location access granted' : 'Location access needed'}
@@ -114,7 +115,7 @@ export default function LocationPicker({
                 <View style={styles.locationHeader}>
                     <Text style={styles.sectionTitle}>Current Location</Text>
                     <TouchableOpacity onPress={getCurrentLocation}>
-                        <Ionicons name="refresh" size={20} color="#007AFF" />
+                        <Ionicons name="refresh" size={20} color={colors.primaryGreen} />
                     </TouchableOpacity>
                 </View>
 
@@ -132,7 +133,7 @@ export default function LocationPicker({
                         style={styles.getLocationButton}
                         onPress={getCurrentLocation}
                     >
-                        <Ionicons name="location" size={20} color="#007AFF" />
+                        <Ionicons name="location" size={20} color="#fff" />
                         <Text style={styles.getLocationText}>Get Current Location</Text>
                     </TouchableOpacity>
                 )}
@@ -147,7 +148,7 @@ export default function LocationPicker({
                         <Switch
                             value={anyDistance}
                             onValueChange={onAnyDistanceChange}
-                            trackColor={{ false: '#e0e0e0', true: '#00C48C' }}
+                            trackColor={{ false: '#e0e0e0', true: colors.primaryGreen }}
                             thumbColor={anyDistance ? '#fff' : '#f4f3f4'}
                         />
                     </View>
@@ -161,7 +162,7 @@ export default function LocationPicker({
                             maximumValue={100}
                             value={distancePreference}
                             onValueChange={onDistanceChange}
-                            minimumTrackTintColor="#00C48C"
+                            minimumTrackTintColor={colors.primaryGreen}
                             maximumTrackTintColor="#e0e0e0"
                         />
                         <Text style={styles.distanceText}>
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     permissionButton: {
-        backgroundColor: '#007AFF',
+        backgroundColor: colors.primaryGreen,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 8,
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
         color: '#1A1A1A',
     },
     clearButton: {
-        backgroundColor: '#FF6B6B',
+        backgroundColor: colors.primaryGreen,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 6,
@@ -259,13 +260,19 @@ const styles = StyleSheet.create({
     getLocationButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: colors.primaryGreen,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignSelf: 'flex-start',
+        marginTop: 8,
         gap: 8,
-        paddingVertical: 12,
     },
     getLocationText: {
-        fontSize: 16,
-        color: '#007AFF',
-        fontWeight: '500',
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 6,
     },
     distanceSection: {
         backgroundColor: '#fff',

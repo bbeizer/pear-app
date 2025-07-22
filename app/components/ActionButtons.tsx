@@ -21,15 +21,20 @@ export default function ActionButtons({
     return (
         <View style={styles.actionButtons}>
             <TouchableOpacity
-                style={[styles.actionButton, styles.passButton]}
+                style={[styles.actionButton, styles.passButton, { borderWidth: 2, borderColor: 'red' }]}
                 onPress={onPass}
                 disabled={disabled}
+
             >
                 <Ionicons name="close" size={32} color="#FF6B6B" />
             </TouchableOpacity>
 
             <TouchableOpacity
-                style={[styles.actionButton, styles.likeButton]}
+                style={[
+                    styles.actionButton,
+                    styles.likeButton,
+                    { borderWidth: 2, borderColor: '#34C159' }
+                ]}
                 onPress={onLike}
                 disabled={disabled}
             >

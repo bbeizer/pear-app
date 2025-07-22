@@ -235,28 +235,34 @@ export default function ProfileForm({
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: 24,
+        marginBottom: 32,
     },
     title: {
         fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 16,
+        fontWeight: '700',
+        marginBottom: 18,
         color: '#1A1A1A',
     },
     fieldCard: {
         backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 14,
+        padding: 18,
+        marginBottom: 18,
         borderWidth: 1,
         borderColor: '#e0e0e0',
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 6,
     },
     fieldCardError: {
         borderColor: '#FF6B6B',
+        shadowColor: '#FF6B6B',
+        shadowOpacity: 0.08,
     },
     label: {
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '600',
         marginBottom: 8,
         color: '#1A1A1A',
     },
@@ -265,8 +271,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#e0e0e0',
         borderRadius: 8,
-        padding: 12,
+        padding: 14,
         fontSize: 16,
+        marginBottom: 2,
     },
     inputError: {
         borderColor: '#FF6B6B',
@@ -286,6 +293,7 @@ const styles = StyleSheet.create({
         borderColor: '#e0e0e0',
         borderRadius: 8,
         overflow: 'hidden',
+        marginBottom: 2,
     },
     picker: {
         height: 50,
@@ -294,5 +302,6 @@ const styles = StyleSheet.create({
         color: '#FF6B6B',
         fontSize: 12,
         marginTop: 4,
+        fontWeight: '600',
     },
 }); 

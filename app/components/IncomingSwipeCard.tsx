@@ -95,11 +95,6 @@ export default function IncomingSwipeCard({ swipe, slideAnim }: IncomingSwipeCar
                     )}
                 </View>
             </View>
-
-            {/* Like Indicator */}
-            <View style={styles.likeIndicator}>
-                <Text style={styles.likeText}>❤️ Liked You</Text>
-            </View>
         </Animated.View>
     );
 }

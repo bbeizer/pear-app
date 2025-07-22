@@ -8,6 +8,7 @@ import { useHaptics } from '../../lib/hooks/useHaptics';
 import { fetchUserMatches } from '../../lib/supabaseUtils';
 import MatchModal from '../components/MatchModal';
 import MatchCard from '../components/MatchCard';
+import { colors } from '../../theme/colors';
 
 export default function MatchesScreen() {
     const [matches, setMatches] = useState<Match[]>([]);
