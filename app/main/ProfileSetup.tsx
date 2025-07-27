@@ -83,8 +83,11 @@ export default function ProfileSetup() {
     };
 
     const handleLocationChange = (lat: number | null, lng: number | null, cityName: string, stateName: string) => {
-        setLatitude(lat);
-        setLongitude(lng);
+        const roundedLat = lat ? parseFloat(lat.toFixed(4)) : null;
+        const roundedLng = lng ? parseFloat(lng.toFixed(4)) : null;
+
+        setLatitude(roundedLat);
+        setLongitude(roundedLng);
         setCity(cityName);
         setState(stateName);
     };
