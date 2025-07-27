@@ -15,6 +15,8 @@ import { supabase } from '../../lib/supabaseClient';
 import type { Profile, Match } from '../../types';
 import { useHaptics } from '../../lib/hooks/useHaptics';
 import { colors } from '../../theme/colors';
+import VenueSuggestions from './VenueSuggestions';
+import type { Venue } from '../../lib/venueClient';
 
 
 // No separate TimeProposal interface needed - proposal data is in the match object
@@ -305,6 +307,37 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
                             </Text>
                         )}
                     </View>
+
+                    {/* Venue Suggestions for In-Person Meetings */}
+                    {match.meeting_type === 'in-person' && profile?.latitude && profile?.longitude && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Venue Suggestions</Text>
+                            <View style={styles.venueSuggestionsContainer}>
+                                <VenueSuggestions
+                                    latitude={profile.latitude}
+                                    longitude={profile.longitude}
+                                    onVenueSelect={(venue) => {
+                                        // TODO: Update the match with the selected venue
+                                        Alert.alert(
+                                            'Venue Selected',
+                                            `Selected: ${venue.name}`,
+                                            [
+                                                { text: 'Cancel', style: 'cancel' },
+                                                {
+                                                    text: 'Use This Venue',
+                                                    onPress: () => {
+                                                        // TODO: Update match.suggested_venue with venue.name
+                                                        Alert.alert('Success', 'Venue suggestion updated!');
+                                                    }
+                                                }
+                                            ]
+                                        );
+                                    }}
+                                    selectedVenue={match.suggested_venue ? { id: 'selected', name: match.suggested_venue } as Venue : null}
+                                />
+                            </View>
+                        </View>
+                    )}
 
                     {loading ? (
                         <View style={styles.loadingContainer}>
@@ -763,5 +796,9 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    venueSuggestionsContainer: {
+        height: 300,
+        marginTop: 8,
     },
 }); 

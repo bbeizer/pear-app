@@ -98,7 +98,7 @@ export default function Availability(): JSX.Element {
                                                 style={[
                                                     styles.cell,
                                                     { backgroundColor: active ? colors.primaryGreen : colors.gray200 },
-                                                    { borderColor: colors.gray300 },
+                                                    active ? { shadowColor: colors.primaryGreen, shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } } : {},
                                                 ]}
                                                 onPressIn={() => handleCellPressIn(key)}
                                                 onPressOut={handleCellPressOut}
@@ -106,7 +106,7 @@ export default function Availability(): JSX.Element {
                                                 accessibilityLabel={`${day} at ${time} ${active ? 'selected' : 'not selected'}`}
                                                 accessibilityRole="button"
                                             >
-                                                <Text style={{ fontSize: 8, color: active ? colors.white : colors.gray700 }}>
+                                                <Text style={{ fontSize: 8, color: active ? colors.white : '#bbb', fontWeight: active ? '700' : '500' }}>
                                                     {day.slice(0, 1)}
                                                 </Text>
                                             </Pressable>
@@ -146,28 +146,28 @@ const styles = StyleSheet.create({
     cell: {
         alignItems: 'center',
         backgroundColor: colors.white,
-        borderColor: colors.gray200,
-        borderRadius: 7,
+        borderColor: '#eee',
+        borderRadius: 10,
         borderWidth: 1,
         elevation: 1,
         height: CELL_SIZE,
         justifyContent: 'center',
-        marginHorizontal: 1,
-        marginVertical: 2,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 1,
+        marginHorizontal: 2,
+        marginVertical: 3,
+        shadowColor: 'transparent',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0,
+        shadowRadius: 0,
         width: CELL_SIZE,
     },
     dayHeader: {
         alignItems: 'center',
         backgroundColor: colors.gray100,
-        borderRadius: 7,
+        borderRadius: 10,
         height: HEADER_HEIGHT,
         justifyContent: 'center',
-        marginHorizontal: 1,
-        marginVertical: 2,
+        marginHorizontal: 2,
+        marginVertical: 3,
         width: CELL_SIZE,
     },
     gridOuter: {
@@ -195,8 +195,9 @@ const styles = StyleSheet.create({
     },
     headerText: {
         color: colors.primaryGreen,
-        fontSize: 13,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '700',
+        letterSpacing: 0.5,
     },
     horizontalScroll: {
         alignItems: 'center',
@@ -210,16 +211,16 @@ const styles = StyleSheet.create({
     },
     resetButton: {
         alignItems: 'center',
-        backgroundColor: colors.white,
-        borderColor: colors.gray300,
-        borderRadius: 8,
-        borderWidth: 1,
+        backgroundColor: 'transparent',
+        borderColor: colors.primaryGreen,
+        borderRadius: 10,
+        borderWidth: 2,
         minWidth: 120,
         paddingHorizontal: 32,
-        paddingVertical: 12,
+        paddingVertical: 16,
     },
     resetButtonText: {
-        color: colors.gray700,
+        color: colors.primaryGreen,
         fontSize: 16,
         fontWeight: 'bold',
     },
@@ -230,11 +231,11 @@ const styles = StyleSheet.create({
     saveButton: {
         alignItems: 'center',
         backgroundColor: colors.primaryGreen,
-        borderRadius: 8,
+        borderRadius: 10,
         elevation: 2,
         minWidth: 120,
         paddingHorizontal: 32,
-        paddingVertical: 12,
+        paddingVertical: 16,
         shadowColor: colors.primaryGreen,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,

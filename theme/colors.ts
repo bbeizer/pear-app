@@ -5,9 +5,12 @@ export const colors = {
   gray100: '#e9ecef',
   gray200: '#dee2e6',
   gray300: '#bdbdbd',
+  gray500: '#6c757d',
+  gray600: '#495057',
   gray700: '#495057',
   gray900: '#222',
   primaryGreen: '#34C159',
   green: '#34C159',
   greenDark: '#28a745',
+  red: '#dc3545',
 }; 
