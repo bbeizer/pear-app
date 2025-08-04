@@ -13,9 +13,10 @@ import type { Match } from '../../types';
 interface MatchCardProps {
     match: Match;
     onPress: () => void;
+    onVenuePress?: () => void;
 }
 
-export default function MatchCard({ match, onPress }: MatchCardProps) {
+export default function MatchCard({ match, onPress, onVenuePress }: MatchCardProps) {
     const profile = match.other_user_profile;
     const photos = profile?.photos || [];
     const primaryPhoto = photos.find(p => p.is_primary) || photos[0];
@@ -91,9 +92,9 @@ export default function MatchCard({ match, onPress }: MatchCardProps) {
                         💡 {match.suggested_activity}
                     </Text>
                 )}
-                {match.suggested_venue && (
+                {match.venue_name && (
                     <Text style={styles.suggestedVenue}>
-                        📍 {match.suggested_venue}
+                        📍 {match.venue_name}
                     </Text>
                 )}
 
@@ -103,9 +104,23 @@ export default function MatchCard({ match, onPress }: MatchCardProps) {
                 </Text>
             </View>
 
-            {/* Action Arrow */}
-            <View style={styles.actionArrow}>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            {/* Action Buttons */}
+            <View style={styles.actionContainer}>
+                {onVenuePress && (
+                    <TouchableOpacity
+                        style={styles.venueButton}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            onVenuePress();
+                        }}
+                    >
+                        <Ionicons name="location" size={16} color={colors.primaryGreen} />
+                    </TouchableOpacity>
+                )}
+
+                <View style={styles.actionArrow}>
+                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -207,8 +222,18 @@ const styles = StyleSheet.create({
         color: '#999',
         marginTop: 4,
     },
+    actionContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingRight: 16,
+    },
+    venueButton: {
+        padding: 8,
+        marginRight: 8,
+        borderRadius: 20,
+        backgroundColor: '#f0f9ff',
+    },
     actionArrow: {
         justifyContent: 'center',
-        paddingRight: 16,
     },
 }); 

@@ -1,85 +1,37 @@
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
-import { supabase } from '../../lib/supabaseClient';
+import React from 'react';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { Match } from '../../types';
 import { useHaptics } from '../../lib/hooks/useHaptics';
-import { fetchUserMatches } from '../../lib/supabaseUtils';
+import { useMatches } from '../../lib/hooks/useMatches';
 import MatchModal from '../components/MatchModal';
 import MatchCard from '../components/MatchCard';
+import VenueSuggestionModal from '../components/VenueSuggestionModal';
 import { colors } from '../../theme/colors';
 
 export default function MatchesScreen() {
-    const [matches, setMatches] = useState<Match[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-    const [modalVisible, setModalVisible] = useState(false);
-
     const { lightImpact } = useHaptics();
+    const matches = useMatches();
 
-    useEffect(() => {
-        fetchMatches();
-    }, []);
-
-    const fetchMatches = async () => {
-        try {
-            const { data: userData } = await supabase.auth.getUser();
-            if (!userData?.user) return;
-
-            const userId = userData.user.id;
-            const userMatches = await fetchUserMatches(userId);
-
-            // Get profiles for the other users in each match
-            const matchesWithProfiles = await Promise.all(
-                userMatches.map(async (match) => {
-                    const otherUserId = match.user1_id === userId ? match.user2_id : match.user1_id;
-
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', otherUserId)
-                        .single();
-
-                    return {
-                        ...match,
-                        other_user_profile: profile
-                    };
-                })
-            );
-
-            setMatches(matchesWithProfiles);
-        } catch (error) {
-            console.error('Error fetching matches:', error);
-            Alert.alert('Error', 'Failed to load matches. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleMatchPress = (match: Match) => {
+    const handleMatchPress = (match: any) => {
         lightImpact();
-        setSelectedMatch(match);
-        setModalVisible(true);
+        matches.handleMatchPress(match);
     };
 
-    const handleCloseModal = () => {
-        setModalVisible(false);
-        setSelectedMatch(null);
+    const handleVenuePress = (match: any) => {
+        lightImpact();
+        matches.handleVenuePress(match);
     };
 
-    const handleMatchUpdate = () => {
-        fetchMatches();
-    };
-
-    const renderMatch = ({ item }: { item: Match }) => (
+    const renderMatch = ({ item }: { item: any }) => (
         <MatchCard
             match={item}
             onPress={() => handleMatchPress(item)}
+            onVenuePress={() => handleVenuePress(item)}
         />
     );
 
-    if (loading) {
+    if (matches.loading) {
         return (
             <View style={styles.container}>
                 <Text style={styles.loadingText}>Loading matches...</Text>
@@ -93,14 +45,14 @@ export default function MatchesScreen() {
             <View style={styles.header}>
                 <Text style={styles.title}>Matches</Text>
                 <Text style={styles.subtitle}>
-                    {matches.length === 0
+                    {matches.matches.length === 0
                         ? "No matches yet. Keep swiping!"
-                        : `${matches.length} match${matches.length !== 1 ? 'es' : ''}`}
+                        : `${matches.matches.length} match${matches.matches.length !== 1 ? 'es' : ''}`}
                 </Text>
             </View>
 
             {/* Matches List */}
-            {matches.length === 0 ? (
+            {matches.matches.length === 0 ? (
                 <View style={styles.emptyState}>
                     <Ionicons name="sparkles-outline" size={64} color="#ccc" />
                     <Text style={styles.emptyTitle}>No Matches Yet</Text>
@@ -110,7 +62,7 @@ export default function MatchesScreen() {
                 </View>
             ) : (
                 <FlatList
-                    data={matches}
+                    data={matches.matches}
                     keyExtractor={(item) => item.id}
                     renderItem={renderMatch}
                     showsVerticalScrollIndicator={false}
@@ -119,12 +71,25 @@ export default function MatchesScreen() {
             )}
 
             {/* Match Modal */}
-            {selectedMatch && (
+            {matches.selectedMatch && (
                 <MatchModal
-                    match={selectedMatch}
-                    visible={modalVisible}
-                    onClose={handleCloseModal}
-                    onMatchUpdate={handleMatchUpdate}
+                    match={matches.selectedMatch}
+                    visible={matches.modalVisible}
+                    onClose={matches.handleCloseModal}
+                    onMatchUpdate={matches.handleMatchUpdate}
+                />
+            )}
+
+            {/* Venue Suggestion Modal */}
+            {matches.selectedMatch && (
+                <VenueSuggestionModal
+                    visible={matches.venueModalVisible}
+                    onClose={matches.handleCloseVenueModal}
+                    suggestedVenue={matches.suggestedVenue}
+                    midpoint={matches.calculateMidpoint(matches.selectedMatch)}
+                    onVenueAccept={matches.handleVenueAccept}
+                    onVenueSuggest={matches.handleVenueSuggest}
+                    matchName={matches.selectedMatch.other_user_profile?.name || 'Your Match'}
                 />
             )}
         </View>

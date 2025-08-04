@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVenues } from '../../lib/hooks/useVenues';
 import { colors } from '../../theme/colors';
 import type { Venue } from '../../lib/venueClient';
+import { formatDistanceInMiles } from '../../utils/locationUtils';
 
 interface VenueSuggestionsProps {
     latitude: number;
@@ -28,10 +29,7 @@ interface VenueCardProps {
 }
 
 const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => {
-    const formatDistance = (meters: number) => {
-        const miles = meters * 0.000621371;
-        return `${miles.toFixed(1)} mi`;
-    };
+
 
     const renderStars = (rating: number) => {
         const stars = [];
@@ -84,7 +82,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => 
                         {venue.categories.join(', ')}
                     </Text>
                     <Text style={styles.venueDistance}>
-                        {formatDistance(venue.distance)}
+                        {formatDistanceInMiles(venue.distance)}
                     </Text>
                 </View>
 

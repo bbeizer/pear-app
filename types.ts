@@ -60,6 +60,17 @@ export interface Match {
   suggested_venue?: string;
   user1_proposed_time?: string;
   user2_proposed_time?: string;
+  // Venue details
+  venue_name?: string;
+  venue_address?: string;
+  venue_latitude?: number;
+  venue_longitude?: number;
+  venue_rating?: number;
+  venue_price_level?: number;
+  venue_categories?: string[];
+  venue_distance_meters?: number;
+  venue_suggested_by?: string;
+  venue_suggested_at?: string;
   created_at: string;
   updated_at: string;
   other_user_profile: Profile;

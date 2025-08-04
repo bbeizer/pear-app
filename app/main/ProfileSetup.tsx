@@ -1,206 +1,29 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
-    View, Text, Button, StyleSheet, ScrollView, Alert, TouchableOpacity,
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
-import { supabase } from '../../lib/supabaseClient';
-import { useRouter } from 'expo-router';
 import { useSupabaseUser } from '../../lib/hooks/useSupabaseUser';
 import { useRegisterPushToken } from '../../lib/hooks/useRegisterPushToken';
-import type { Profile } from '../../types';
+import { useProfileSetup } from '../../lib/hooks/useProfileSetup';
 import { colors } from '../../theme/colors';
 
-// Import our new components
+// Import components
 import ImageUploader from '../components/ImageUploader';
 import ProfileForm from '../components/ProfileForm';
 import LocationPicker from '../components/LocationPicker';
 import PromptSelector from '../components/PromptSelector';
 
 export default function ProfileSetup() {
-    const router = useRouter();
     const user = useSupabaseUser();
     useRegisterPushToken(user?.id);
 
-    // Form state
-    const [name, setName] = useState('');
-    const [bio, setBio] = useState('');
-    const [images, setImages] = useState<(string | null)[]>(Array(8).fill(null));
-    const [selectedPrompts, setSelectedPrompts] = useState<string[]>([]);
-    const [promptAnswers, setPromptAnswers] = useState<Record<string, string>>({});
-    const [loading, setLoading] = useState(false);
-
-    // Profile fields
-    const [age, setAge] = useState('');
-    const [gender, setGender] = useState('');
-    const [sexuality, setSexuality] = useState('');
-    const [height, setHeight] = useState('');
-    const [religion, setReligion] = useState('');
-    const [politics, setPolitics] = useState('');
-    const [datingIntentions, setDatingIntentions] = useState('');
-    const [relationshipType, setRelationshipType] = useState('');
-    const [drinkingFrequency, setDrinkingFrequency] = useState('');
-    const [drugsFrequency, setDrugsFrequency] = useState('');
-
-    // Location state
-    const [latitude, setLatitude] = useState<number | null>(null);
-    const [longitude, setLongitude] = useState<number | null>(null);
-    const [city, setCity] = useState('');
-    const [state, setState] = useState('');
-    const [distancePreference, setDistancePreference] = useState<number>(25);
-    const [anyDistance, setAnyDistance] = useState<boolean>(false);
-    const [locationPermission, setLocationPermission] = useState<boolean>(false);
-
-    // Validation
-    const [validationErrors, setValidationErrors] = useState<string[]>([]);
-
-    const validateProfile = () => {
-        const errors: string[] = [];
-
-        if (!name.trim()) errors.push('name');
-        if (!age.trim()) errors.push('age');
-        if (!gender.trim()) errors.push('gender');
-        if (images.every(img => !img)) errors.push('images');
-
-        setValidationErrors(errors);
-        return errors.length === 0;
-    };
-
-    const handleFieldChange = (field: string, value: string) => {
-        switch (field) {
-            case 'name': setName(value); break;
-            case 'bio': setBio(value); break;
-            case 'age': setAge(value); break;
-            case 'gender': setGender(value); break;
-            case 'sexuality': setSexuality(value); break;
-            case 'height': setHeight(value); break;
-            case 'religion': setReligion(value); break;
-            case 'politics': setPolitics(value); break;
-            case 'datingIntentions': setDatingIntentions(value); break;
-            case 'relationshipType': setRelationshipType(value); break;
-            case 'drinkingFrequency': setDrinkingFrequency(value); break;
-            case 'drugsFrequency': setDrugsFrequency(value); break;
-        }
-    };
-
-    const handleLocationChange = (lat: number | null, lng: number | null, cityName: string, stateName: string) => {
-        const roundedLat = lat ? parseFloat(lat.toFixed(4)) : null;
-        const roundedLng = lng ? parseFloat(lng.toFixed(4)) : null;
-
-        setLatitude(roundedLat);
-        setLongitude(roundedLng);
-        setCity(cityName);
-        setState(stateName);
-    };
+    // Custom hook for all profile setup logic
+    const profileSetup = useProfileSetup();
 
     const handleSave = async () => {
-        if (!validateProfile()) {
-            Alert.alert('Missing Information', 'Please fill in all required fields and add at least one photo.');
-            return;
-        }
-
-        if (!user?.id) {
-            Alert.alert('Error', 'User not found. Please log in again.');
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            // Upload images to Supabase storage
-            const uploadedImageUrls: string[] = [];
-            for (let i = 0; i < images.length; i++) {
-                const image = images[i];
-                if (image) {
-                    const fileName = `${user.id}/image_${i}_${Date.now()}.jpg`;
-                    const { data, error } = await supabase.storage
-                        .from('profile-images')
-                        .upload(fileName, {
-                            uri: image,
-                            type: 'image/jpeg',
-                            name: fileName,
-                        } as any);
-
-                    if (error) {
-                        console.error('Image upload error:', error);
-                        Alert.alert('Error', 'Failed to upload image. Please try again.');
-                        return;
-                    }
-
-                    const { data: urlData } = supabase.storage
-                        .from('profile-images')
-                        .getPublicUrl(fileName);
-
-                    uploadedImageUrls.push(urlData.publicUrl);
-                }
-            }
-
-            // Create profile object
-            const profileData: Partial<Profile> = {
-                id: user.id,
-                user_id: user.id,
-                name: name.trim(),
-                bio: bio.trim(),
-                age: parseInt(age),
-                gender,
-                height,
-                religion,
-                politics,
-                dating_intentions: datingIntentions,
-                relationship_type: relationshipType,
-                drinking_frequency: drinkingFrequency,
-                drugs_frequency: drugsFrequency,
-                latitude: latitude || undefined,
-                longitude: longitude || undefined,
-                city,
-                state,
-                distance_preference: anyDistance ? undefined : distancePreference,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
-
-            // Insert or update profile
-            const { error } = await supabase
-                .from('profiles')
-                .upsert(profileData, { onConflict: 'id' });
-
-            if (error) {
-                console.error('Profile save error:', error);
-                Alert.alert('Error', 'Failed to save profile. Please try again.');
-                return;
-            }
-
-            // Save prompts separately
-            if (selectedPrompts.length > 0) {
-                const promptData = selectedPrompts.map((prompt, index) => ({
-                    profile_id: user.id,
-                    question: prompt,
-                    answer: promptAnswers[prompt] || '',
-                    order_index: index,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                }));
-
-                const { error: promptError } = await supabase
-                    .from('prompts')
-                    .upsert(promptData, { onConflict: 'profile_id,question' });
-
-                if (promptError) {
-                    console.error('Prompt save error:', promptError);
-                }
-            }
-
-            Alert.alert('Success! 🎉', 'Your profile has been saved successfully!', [
-                {
-                    text: 'Continue',
-                    onPress: () => router.replace('/main/'),
-                },
-            ]);
-
-        } catch (error) {
-            console.error('Unexpected error:', error);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
-        } finally {
-            setLoading(false);
+        if (user?.id) {
+            await profileSetup.handleSave(user.id);
         }
     };
 
@@ -215,63 +38,63 @@ export default function ProfileSetup() {
 
             {/* Photos Section */}
             <ImageUploader
-                images={images}
-                onImagesChange={setImages}
+                images={profileSetup.images}
+                onImagesChange={profileSetup.setImages}
                 maxImages={8}
             />
 
             {/* Basic Information */}
             <ProfileForm
-                name={name}
-                bio={bio}
-                age={age}
-                gender={gender}
-                sexuality={sexuality}
-                height={height}
-                religion={religion}
-                politics={politics}
-                datingIntentions={datingIntentions}
-                relationshipType={relationshipType}
-                drinkingFrequency={drinkingFrequency}
-                drugsFrequency={drugsFrequency}
-                onFieldChange={handleFieldChange}
-                validationErrors={validationErrors}
+                name={profileSetup.name}
+                bio={profileSetup.bio}
+                age={profileSetup.age}
+                gender={profileSetup.gender}
+                sexuality={profileSetup.sexuality}
+                height={profileSetup.height}
+                religion={profileSetup.religion}
+                politics={profileSetup.politics}
+                datingIntentions={profileSetup.datingIntentions}
+                relationshipType={profileSetup.relationshipType}
+                drinkingFrequency={profileSetup.drinkingFrequency}
+                drugsFrequency={profileSetup.drugsFrequency}
+                onFieldChange={profileSetup.handleFieldChange}
+                validationErrors={profileSetup.validationErrors}
             />
 
             {/* Location */}
             <LocationPicker
-                latitude={latitude}
-                longitude={longitude}
-                city={city}
-                state={state}
-                distancePreference={distancePreference}
-                anyDistance={anyDistance}
-                locationPermission={locationPermission}
-                onLocationChange={handleLocationChange}
-                onDistanceChange={setDistancePreference}
-                onAnyDistanceChange={setAnyDistance}
-                onPermissionChange={setLocationPermission}
+                latitude={profileSetup.latitude}
+                longitude={profileSetup.longitude}
+                city={profileSetup.city}
+                state={profileSetup.state}
+                distancePreference={profileSetup.distancePreference}
+                anyDistance={profileSetup.anyDistance}
+                locationPermission={profileSetup.locationPermission}
+                onLocationChange={profileSetup.handleLocationChange}
+                onDistanceChange={profileSetup.setDistancePreference}
+                onAnyDistanceChange={profileSetup.setAnyDistance}
+                onPermissionChange={profileSetup.setLocationPermission}
             />
 
             {/* Prompts */}
             <PromptSelector
-                selectedPrompts={selectedPrompts}
-                promptAnswers={promptAnswers}
-                onPromptsChange={setSelectedPrompts}
-                onAnswersChange={setPromptAnswers}
+                selectedPrompts={profileSetup.selectedPrompts}
+                promptAnswers={profileSetup.promptAnswers}
+                onPromptsChange={profileSetup.setSelectedPrompts}
+                onAnswersChange={profileSetup.setPromptAnswers}
                 maxPrompts={3}
             />
 
             {/* Action Buttons */}
             <View style={styles.actions}>
                 <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+                    style={[styles.saveButton, profileSetup.loading && styles.saveButtonDisabled]}
                     onPress={handleSave}
-                    disabled={loading}
+                    disabled={profileSetup.loading}
                     activeOpacity={0.8}
                 >
                     <Text style={styles.saveButtonText}>
-                        {loading ? 'Saving...' : 'Save Profile'}
+                        {profileSetup.loading ? 'Saving...' : 'Save Profile'}
                     </Text>
                 </TouchableOpacity>
             </View>

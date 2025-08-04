@@ -19,11 +19,19 @@ export default () => ({
                 NSCameraUsageDescription: "This app uses the camera to let you upload photos.",
                 NSPhotoLibraryUsageDescription: "This app needs access to your photo library.",
             },
+            config: {
+                googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+            },
         },
         android: {
             package: "com.benbeizer.pearapp",
             adaptiveIcon: {
                 backgroundColor: "#ffffff",
+            },
+            config: {
+                googleMaps: {
+                    apiKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+                },
             },
         },
         updates: {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, JSX } from 'react';
+import React, { JSX } from 'react';
 import {
     View,
     Text,
@@ -6,12 +6,10 @@ import {
     ScrollView,
     Pressable,
     TouchableOpacity,
-    Dimensions,
-    Alert,
     ActivityIndicator,
+    Dimensions,
 } from 'react-native';
-import { useAvailabilityGrid, days, hours } from '../../lib/hooks/useAvailabilityGrid';
-import { useHaptics } from '../../lib/hooks/useHaptics';
+import { useAvailabilityUI, days, hours } from '../../lib/hooks/useAvailabilityUI';
 import { colors } from '../../theme/colors';
 
 const CELL_SIZE = 36;
@@ -28,23 +26,10 @@ export default function Availability(): JSX.Element {
         handleGridTouchMove,
         handleColSelect,
         handleRowSelect,
-        handleSave,
-        handleReset,
+        onSavePress,
+        onResetPress,
         getCellStyle,
-    } = useAvailabilityGrid();
-    const haptics = useHaptics();
-
-    console.log('HOURS:', hours);
-    console.log('DAYS:', days);
-
-    const onSavePress = async () => {
-        const result = await handleSave();
-        if (result.success) {
-            Alert.alert('Success!', 'Your availability has been saved.');
-        } else {
-            Alert.alert('Error', `Failed to save availability: ${result.error}`);
-        }
-    };
+    } = useAvailabilityUI();
 
     if (isLoading) {
         return (
@@ -98,18 +83,11 @@ export default function Availability(): JSX.Element {
                                                 style={[
                                                     styles.cell,
                                                     { backgroundColor: active ? colors.primaryGreen : colors.gray200 },
-                                                    active ? { shadowColor: colors.primaryGreen, shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } } : {},
                                                 ]}
                                                 onPressIn={() => handleCellPressIn(key)}
                                                 onPressOut={handleCellPressOut}
-                                                onResponderMove={handleGridTouchMove}
-                                                accessibilityLabel={`${day} at ${time} ${active ? 'selected' : 'not selected'}`}
-                                                accessibilityRole="button"
-                                            >
-                                                <Text style={{ fontSize: 8, color: active ? colors.white : '#bbb', fontWeight: active ? '700' : '500' }}>
-                                                    {day.slice(0, 1)}
-                                                </Text>
-                                            </Pressable>
+                                                onTouchMove={handleGridTouchMove}
+                                            />
                                         );
                                     })}
                                 </View>
@@ -118,18 +96,25 @@ export default function Availability(): JSX.Element {
                     </View>
                 </View>
             </ScrollView>
-            <View style={styles.buttons}>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
                 <TouchableOpacity
-                    style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                    style={[styles.resetButton, isSaving && styles.buttonDisabled]}
+                    onPress={onResetPress}
+                    disabled={isSaving}
+                >
+                    <Text style={styles.resetButtonText}>Reset</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.saveButton, isSaving && styles.buttonDisabled]}
                     onPress={onSavePress}
                     disabled={isSaving}
                 >
                     <Text style={styles.saveButtonText}>
-                        {isSaving ? 'Saving...' : 'Save'}
+                        {isSaving ? 'Saving...' : 'Save Availability'}
                     </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.resetButton} onPress={() => { haptics.mediumImpact(); handleReset(); }}>
-                    <Text style={styles.resetButtonText}>Reset</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -137,11 +122,14 @@ export default function Availability(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-    buttons: {
+    actionButtons: {
         flexDirection: 'row',
         justifyContent: 'space-evenly',
         marginTop: 8,
         padding: 16,
+    },
+    buttonDisabled: {
+        opacity: 0.7,
     },
     cell: {
         alignItems: 'center',
@@ -240,9 +228,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 4,
-    },
-    saveButtonDisabled: {
-        opacity: 0.7,
     },
     saveButtonText: {
         color: colors.white,
