@@ -33,12 +33,20 @@ export function useLikes() {
 
     const fetchIncomingSwipes = async () => {
         try {
+            console.log('🔍 [useLikes] Starting fetchIncomingSwipes...');
             const { data: userData } = await supabase.auth.getUser();
-            if (!userData?.user) return;
+            console.log('🔍 [useLikes] User data:', userData);
+            
+            if (!userData?.user) {
+                console.log('❌ [useLikes] No user found');
+                return;
+            }
 
             const userId = userData.user.id;
+            console.log('🔍 [useLikes] Current user ID:', userId);
 
             // Get all swipes where this user is the swipee (was swiped on)
+            console.log('🔍 [useLikes] Fetching swipes where swipee_id =', userId);
             const { data: swipes, error } = await supabase
                 .from('swipes')
                 .select(`
@@ -50,28 +58,53 @@ export function useLikes() {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error fetching incoming swipes:', error);
+                console.error('❌ [useLikes] Error fetching incoming swipes:', error);
                 return;
             }
 
+            console.log('✅ [useLikes] Raw swipes found:', swipes?.length || 0);
+            console.log('✅ [useLikes] Raw swipes data:', swipes);
+
             // Get user's matches to exclude them from likes
+            console.log('🔍 [useLikes] Fetching user matches for user ID:', userId);
             const { data: userMatches } = await supabase
                 .from('matches')
                 .select('user1_id, user2_id')
                 .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
 
+            console.log('✅ [useLikes] User matches found:', userMatches?.length || 0);
+            console.log('✅ [useLikes] User matches data:', userMatches);
+
             const matchedUserIds = userMatches?.map(match =>
                 match.user1_id === userId ? match.user2_id : match.user1_id
             ) || [];
 
-            // Filter out people you've already matched with
+            console.log('🔍 [useLikes] Matched user IDs to exclude:', matchedUserIds);
+
+            // Check if user has already responded to these swipes
+            console.log('🔍 [useLikes] Checking if user has responded to incoming swipes...');
+            const { data: userResponses } = await supabase
+                .from('swipes')
+                .select('swipee_id')
+                .eq('swiper_id', userId)
+                .in('swipee_id', swipes?.map(s => s.swiper_id) || []);
+
+            console.log('✅ [useLikes] User responses found:', userResponses?.length || 0);
+            console.log('✅ [useLikes] User responses data:', userResponses);
+
+            const respondedUserIds = userResponses?.map(response => response.swipee_id) || [];
+
+            // Filter out people you've already responded to (not just matched with)
             const filteredSwipes = swipes?.filter(swipe =>
-                !matchedUserIds.includes(swipe.swiper_id)
+                !respondedUserIds.includes(swipe.swiper_id)
             ) || [];
+
+            console.log('✅ [useLikes] Filtered swipes (excluding responded):', filteredSwipes.length);
+            console.log('✅ [useLikes] Final filtered swipes:', filteredSwipes);
 
             setIncomingSwipes(filteredSwipes);
         } catch (error) {
-            console.error('Error in fetchIncomingSwipes:', error);
+            console.error('❌ [useLikes] Error in fetchIncomingSwipes:', error);
         } finally {
             setLoading(false);
         }
@@ -91,10 +124,19 @@ export function useLikes() {
 
     const handleSwipe = async (liked: boolean) => {
         const currentSwipe = incomingSwipes[currentIndex];
-        if (!currentSwipe) return;
+        console.log('🔍 [useLikes] handleSwipe called with liked:', liked);
+        console.log('🔍 [useLikes] Current swipe:', currentSwipe);
+        console.log('🔍 [useLikes] Current index:', currentIndex);
+        console.log('🔍 [useLikes] Total incoming swipes:', incomingSwipes.length);
+        
+        if (!currentSwipe) {
+            console.log('❌ [useLikes] No current swipe found');
+            return;
+        }
 
         try {
             // Create a swipe response
+            console.log('🔍 [useLikes] Creating swipe response...');
             const { error: swipeError } = await supabase
                 .from('swipes')
                 .insert({
@@ -104,19 +146,23 @@ export function useLikes() {
                 });
 
             if (swipeError) {
-                console.error('Error creating swipe response:', swipeError);
+                console.error('❌ [useLikes] Error creating swipe response:', swipeError);
                 Alert.alert('Error', 'Failed to record your response. Please try again.');
                 return;
             }
 
+            console.log('✅ [useLikes] Swipe response created successfully');
+
             // If both users liked each other, create a match
             if (liked && currentSwipe.liked) {
+                console.log('🎉 [useLikes] Creating match! Both users liked each other');
                 const matchResult = await createMatch(
                     currentSwipe.swiper_id,
                     currentSwipe.swipee_id
                 );
 
                 if (matchResult.success) {
+                    console.log('✅ [useLikes] Match created successfully');
                     Alert.alert(
                         'It\'s a Match! 🎉',
                         `You and ${currentSwipe.swiper_profile.name} liked each other!`,
@@ -135,9 +181,10 @@ export function useLikes() {
             }
 
             // Animate the card out
+            console.log('🔍 [useLikes] Animating card out...');
             animateSlideOut(liked ? 'right' : 'left');
         } catch (error) {
-            console.error('Error in handleSwipe:', error);
+            console.error('❌ [useLikes] Error in handleSwipe:', error);
             Alert.alert('Error', 'Something went wrong. Please try again.');
         }
     };

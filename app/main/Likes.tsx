@@ -26,11 +26,38 @@ export default function LikesScreen() {
         likes.handleSkip();
     };
 
+    // Debug info
+    console.log('🔍 [Likes] Debug info:', {
+        loading: likes.loading,
+        incomingSwipesLength: likes.incomingSwipes.length,
+        currentIndex: likes.currentIndex,
+        hasMoreSwipes: likes.hasMoreSwipes,
+        currentSwipe: likes.currentSwipe
+    });
+
     if (likes.loading) {
         return (
             <View style={styles.loadingContainer}>
                 <Ionicons name="heart-outline" size={64} color="#ccc" />
                 <Text style={styles.loadingText}>Loading likes...</Text>
+            </View>
+        );
+    }
+
+    if (likes.incomingSwipes.length === 0) {
+        return (
+            <View style={styles.emptyContainer}>
+                <Ionicons name="heart-outline" size={64} color="#ccc" />
+                <Text style={styles.emptyTitle}>No Likes Yet</Text>
+                <Text style={styles.emptySubtitle}>
+                    When people like your profile, they'll appear here!
+                </Text>
+                <TouchableOpacity
+                    style={styles.refreshButton}
+                    onPress={() => likes.fetchIncomingSwipes()}
+                >
+                    <Text style={styles.refreshText}>Refresh</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -43,6 +70,12 @@ export default function LikesScreen() {
                 <Text style={styles.emptySubtitle}>
                     You've seen all your incoming likes! Check back later for more.
                 </Text>
+                <TouchableOpacity
+                    style={styles.refreshButton}
+                    onPress={() => likes.fetchIncomingSwipes()}
+                >
+                    <Text style={styles.refreshText}>Refresh</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -72,7 +105,7 @@ export default function LikesScreen() {
                     onPress={() => handleSwipe(false)}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="close" size={32} color="#fff" />
+                    <Text style={styles.passButtonText}>✕</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -88,7 +121,7 @@ export default function LikesScreen() {
                     onPress={() => handleSwipe(true)}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="heart" size={32} color="#fff" />
+                    <Text style={styles.likeButtonText}>🍐</Text>
                 </TouchableOpacity>
             </View>
 
@@ -180,7 +213,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
     },
-
     actionButtons: {
         flexDirection: 'row',
         justifyContent: 'space-evenly',
@@ -220,6 +252,18 @@ const styles = StyleSheet.create({
     skipButton: {
         borderWidth: 2,
         borderColor: '#ccc',
+    },
+    refreshButton: {
+        backgroundColor: colors.primaryGreen,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+        marginTop: 20,
+    },
+    refreshText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
     modalOverlay: {
         position: 'absolute',
@@ -274,5 +318,13 @@ const styles = StyleSheet.create({
         color: '#666',
         fontSize: 16,
         fontWeight: '500',
+    },
+    passButtonText: {
+        fontSize: 24,
+        color: '#FF6B6B',
+    },
+    likeButtonText: {
+        fontSize: 24,
+        color: colors.primaryGreen,
     },
 });
