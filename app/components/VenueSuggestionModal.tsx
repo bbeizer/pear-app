@@ -9,8 +9,9 @@ import {
     Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
-import MapWithRadiusModal from './MapWithRadiusModal';
+import { useVenuePicker } from '../../lib/stores/venuePicker';
 import type { Venue } from '../../lib/venueClient';
 
 interface VenueSuggestionModalProps {
@@ -21,6 +22,7 @@ interface VenueSuggestionModalProps {
     onVenueAccept: (venue: Venue) => void;
     onVenueSuggest: (venue: Venue) => void;
     matchName: string;
+    matchId: string; // NEW
 }
 
 export default function VenueSuggestionModal({
@@ -31,11 +33,19 @@ export default function VenueSuggestionModal({
     onVenueAccept,
     onVenueSuggest,
     matchName,
+    matchId,
 }: VenueSuggestionModalProps) {
-    const [showMapModal, setShowMapModal] = useState(false);
-    const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+    const router = useRouter();
+    const { beginVenuePick } = useVenuePicker();
+    const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+    const addDebugLog = (message: string) => {
+        const timestamp = new Date().toLocaleTimeString();
+        setDebugLogs(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
+    };
 
     const handleAcceptVenue = () => {
+        addDebugLog('Accept venue called');
         if (suggestedVenue) {
             onVenueAccept(suggestedVenue);
             onClose();
@@ -43,32 +53,17 @@ export default function VenueSuggestionModal({
     };
 
     const handleSuggestDifferentVenue = () => {
-        console.log('🔴 handleSuggestDifferentVenue called');
-        console.log('🔴 Setting showMapModal to true');
-        setShowMapModal(true);
-        console.log('🔴 showMapModal should now be true');
-    };
-
-    const handleVenueSelect = (venue: Venue) => {
-        console.log('🔴 handleVenueSelect called with venue:', venue.name);
-        setSelectedVenue(venue);
-        setShowMapModal(false);
-    };
-
-    const handleConfirmNewVenue = () => {
-        console.log('🔴 handleConfirmNewVenue called');
-        if (selectedVenue) {
-            console.log('🔴 Calling onVenueSuggest with venue:', selectedVenue.name);
-            onVenueSuggest(selectedVenue);
-            onClose();
-        }
+        addDebugLog('Suggest different venue called');
+        addDebugLog(`Starting venue pick for match: ${matchId}`);
+        beginVenuePick({ matchId, midpoint });
+        onClose();
+        router.push('/map-picker');
     };
 
     // Debug logs
     console.log('🔴 VenueSuggestionModal render:', {
         visible,
-        showMapModal,
-        hasSelectedVenue: !!selectedVenue
+        hasSelectedVenue: !!suggestedVenue
     });
 
     const formatDistance = (meters: number) => {
@@ -176,63 +171,14 @@ export default function VenueSuggestionModal({
                 </SafeAreaView>
             </Modal>
 
-            <MapWithRadiusModal
-                visible={showMapModal}
-                onClose={() => setShowMapModal(false)}
-                midpoint={midpoint}
-                onVenueSelect={handleVenueSelect}
-            />
-
-            {selectedVenue && (
-                <Modal visible={true} animationType="slide" transparent={true}>
-                    <SafeAreaView style={styles.modalContainer}>
-                        <View style={styles.header}>
-                            <Text style={styles.title}>Confirm New Venue</Text>
-                            <TouchableOpacity onPress={() => setSelectedVenue(null)}>
-                                <Text style={styles.closeButton}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.content}>
-                            <Text style={styles.sectionTitle}>Your Suggestion</Text>
-
-                            <View style={styles.venueCard}>
-                                <View style={styles.venueHeader}>
-                                    <Text style={styles.venueName}>{selectedVenue.name}</Text>
-                                    <View style={styles.venueRating}>
-                                        {renderStars(selectedVenue.rating)}
-                                        <Text style={styles.ratingText}>{selectedVenue.rating}</Text>
-                                    </View>
-                                </View>
-
-                                <Text style={styles.venueCategory}>
-                                    {selectedVenue.categories.join(', ')}
-                                </Text>
-
-                                <Text style={styles.venueAddress}>
-                                    {selectedVenue.location.address}
-                                </Text>
-
-                                <View style={styles.venueMeta}>
-                                    <Text style={styles.venueDistance}>
-                                        {formatDistance(selectedVenue.distance)}
-                                    </Text>
-                                    <Text style={styles.venuePrice}>
-                                        {'$'.repeat(selectedVenue.priceLevel)}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <TouchableOpacity
-                                style={styles.confirmButton}
-                                onPress={handleConfirmNewVenue}
-                            >
-                                <Text style={styles.confirmButtonText}>Suggest This Venue</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </SafeAreaView>
-                </Modal>
-            )}
+            {/* Debug Logs Display */}
+            <View style={styles.debugContainer}>
+                <Text style={styles.debugTitle}>🐛 Debug Logs:</Text>
+                <Text style={styles.debugText}>suggestedVenue: {suggestedVenue ? suggestedVenue.name : 'null'}</Text>
+                {debugLogs.map((log, index) => (
+                    <Text key={index} style={styles.debugLog}>{log}</Text>
+                ))}
+            </View>
         </>
     );
 }
@@ -376,5 +322,31 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    debugContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#f0f0f0',
+        padding: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#ccc',
+    },
+    debugTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 5,
+        color: '#333',
+    },
+    debugText: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 3,
+    },
+    debugLog: {
+        fontSize: 12,
+        color: '#555',
+        marginBottom: 1,
     },
 }); 

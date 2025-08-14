@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useHaptics } from '../../lib/hooks/useHaptics';
 import { useMatches } from '../../lib/hooks/useMatches';
+import { useVenuePicker } from '../../lib/stores/venuePicker';
 import MatchModal from '../components/MatchModal';
 import MatchCard from '../components/MatchCard';
 import VenueSuggestionModal from '../components/VenueSuggestionModal';
@@ -12,6 +13,15 @@ import { colors } from '../../theme/colors';
 export default function MatchesScreen() {
     const { lightImpact } = useHaptics();
     const matches = useMatches();
+    const { activeMatchId, selectedVenue, clear } = useVenuePicker();
+
+    // Listen for confirmed venue from the store
+    useEffect(() => {
+        if (selectedVenue && activeMatchId && matches.selectedMatch?.id === activeMatchId) {
+            matches.handleVenueSuggest(selectedVenue);
+            clear();
+        }
+    }, [selectedVenue, activeMatchId, matches.selectedMatch?.id, matches.handleVenueSuggest, clear]);
 
     const handleMatchPress = (match: any) => {
         lightImpact();
@@ -90,6 +100,7 @@ export default function MatchesScreen() {
                     onVenueAccept={matches.handleVenueAccept}
                     onVenueSuggest={matches.handleVenueSuggest}
                     matchName={matches.selectedMatch.other_user_profile?.name || 'Your Match'}
+                    matchId={matches.selectedMatch.id}
                 />
             )}
         </View>

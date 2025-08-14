@@ -79,7 +79,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => 
 
                 <View style={styles.venueDetails}>
                     <Text style={styles.venueCategory} numberOfLines={1}>
-                        {venue.categories.join(', ')}
+                        {venue.categories?.join(', ') || 'No category'}
                     </Text>
                     <Text style={styles.venueDistance}>
                         {formatDistanceInMiles(venue.distance)}
@@ -113,14 +113,8 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
     onVenueSelect,
     selectedVenue,
 }) => {
-    const { venues, isLoading, error, searchVenues } = useVenues();
+    // Remove the useVenues hook since we're getting venues from parent
     const [activeCategory, setActiveCategory] = useState<'restaurants' | 'cafes' | 'bars' | 'activities'>('restaurants');
-
-    useEffect(() => {
-        if (latitude && longitude) {
-            searchVenues(latitude, longitude);
-        }
-    }, [latitude, longitude, searchVenues]);
 
     const categories = [
         { key: 'restaurants' as const, label: 'Restaurants', icon: 'restaurant' },
@@ -132,21 +126,6 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
     const handleVenueSelect = (venue: Venue) => {
         onVenueSelect?.(venue);
     };
-
-    if (error) {
-        return (
-            <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle-outline" size={48} color={colors.gray300} />
-                <Text style={styles.errorText}>Unable to load venue suggestions</Text>
-                <TouchableOpacity
-                    style={styles.retryButton}
-                    onPress={() => searchVenues(latitude, longitude)}
-                >
-                    <Text style={styles.retryButtonText}>Try Again</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
 
     return (
         <View style={styles.container}>
@@ -186,34 +165,16 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
             </ScrollView>
 
             {/* Venues List */}
-            {isLoading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primaryGreen} />
-                    <Text style={styles.loadingText}>Finding great places nearby...</Text>
+            <ScrollView
+                style={styles.venuesList}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.venuesListContent}
+            >
+                <View style={styles.emptyState}>
+                    <Ionicons name="search-outline" size={48} color={colors.gray300} />
+                    <Text style={styles.emptyText}>Search for venues above to see suggestions</Text>
                 </View>
-            ) : (
-                <ScrollView
-                    style={styles.venuesList}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.venuesListContent}
-                >
-                    {venues[activeCategory].length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="search-outline" size={48} color={colors.gray300} />
-                            <Text style={styles.emptyText}>No {activeCategory} found nearby</Text>
-                        </View>
-                    ) : (
-                        venues[activeCategory].map((venue) => (
-                            <VenueCard
-                                key={venue.id}
-                                venue={venue}
-                                onPress={() => handleVenueSelect(venue)}
-                                isSelected={selectedVenue?.id === venue.id}
-                            />
-                        ))
-                    )}
-                </ScrollView>
-            )}
+            </ScrollView>
         </View>
     );
 };
