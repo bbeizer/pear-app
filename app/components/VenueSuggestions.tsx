@@ -14,109 +14,26 @@ import { useVenues } from '../../lib/hooks/useVenues';
 import { colors } from '../../theme/colors';
 import type { Venue } from '../../lib/venueClient';
 import { formatDistanceInMiles } from '../../utils/locationUtils';
+import VenueCard from './VenueCard';
 
 interface VenueSuggestionsProps {
-    latitude: number;
-    longitude: number;
+    venues: Venue[];
     onVenueSelect?: (venue: Venue) => void;
     selectedVenue?: Venue | null;
 }
 
-interface VenueCardProps {
-    venue: Venue;
-    onPress: () => void;
-    isSelected: boolean;
-}
-
-const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => {
-
-
-    const renderStars = (rating: number) => {
-        const stars = [];
-        const fullStars = Math.floor(rating);
-        const hasHalfStar = rating % 1 !== 0;
-
-        for (let i = 0; i < fullStars; i++) {
-            stars.push(<Ionicons key={i} name="star" size={12} color="#FFD700" />);
-        }
-        if (hasHalfStar) {
-            stars.push(<Ionicons key="half" name="star-half" size={12} color="#FFD700" />);
-        }
-        const emptyStars = 5 - Math.ceil(rating);
-        for (let i = 0; i < emptyStars; i++) {
-            stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={12} color="#ccc" />);
-        }
-
-        return <View style={styles.starsContainer}>{stars}</View>;
-    };
-
-    return (
-        <TouchableOpacity
-            style={[styles.venueCard, isSelected && styles.selectedVenueCard]}
-            onPress={onPress}
-            activeOpacity={0.7}
-        >
-            <View style={styles.venueImageContainer}>
-                {venue.imageUrl ? (
-                    <Image source={{ uri: venue.imageUrl }} style={styles.venueImage} />
-                ) : (
-                    <View style={styles.placeholderImage}>
-                        <Ionicons name="restaurant-outline" size={24} color={colors.gray300} />
-                    </View>
-                )}
-            </View>
-
-            <View style={styles.venueInfo}>
-                <Text style={styles.venueName} numberOfLines={1}>
-                    {venue.name}
-                </Text>
-
-                <View style={styles.venueMeta}>
-                    {renderStars(venue.rating)}
-                    <Text style={styles.venueRating}>{venue.rating}</Text>
-                    <Text style={styles.venueReviewCount}>({venue.reviewCount || 0})</Text>
-                </View>
-
-                <View style={styles.venueDetails}>
-                    <Text style={styles.venueCategory} numberOfLines={1}>
-                        {venue.categories?.join(', ') || 'No category'}
-                    </Text>
-                    <Text style={styles.venueDistance}>
-                        {formatDistanceInMiles(venue.distance)}
-                    </Text>
-                </View>
-
-                <Text style={styles.venueAddress} numberOfLines={1}>
-                    {venue.location.address}
-                </Text>
-
-                <View style={styles.venuePriceContainer}>
-                    <Text style={styles.venuePrice}>{'$'.repeat(venue.priceLevel)}</Text>
-                    {venue.openNow === false && (
-                        <Text style={styles.closedText}>Closed</Text>
-                    )}
-                </View>
-            </View>
-
-            {isSelected && (
-                <View style={styles.selectedIndicator}>
-                    <Ionicons name="checkmark-circle" size={20} color={colors.primaryGreen} />
-                </View>
-            )}
-        </TouchableOpacity>
-    );
-};
-
 const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
-    latitude,
-    longitude,
+    venues,
     onVenueSelect,
     selectedVenue,
 }) => {
-    // Remove the useVenues hook since we're getting venues from parent
-    const [activeCategory, setActiveCategory] = useState<'restaurants' | 'cafes' | 'bars' | 'activities'>('restaurants');
+    console.log('🔍 Debug - VenueSuggestions received venues:', venues);
+    console.log('🔍 Debug - VenueSuggestions venues length:', venues?.length);
+
+    const [activeCategory, setActiveCategory] = useState<'all' | 'restaurants' | 'cafes' | 'bars' | 'activities'>('all');
 
     const categories = [
+        { key: 'all' as const, label: 'All', icon: 'grid' },
         { key: 'restaurants' as const, label: 'Restaurants', icon: 'restaurant' },
         { key: 'cafes' as const, label: 'Cafes', icon: 'cafe' },
         { key: 'bars' as const, label: 'Bars', icon: 'wine' },
@@ -126,6 +43,59 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
     const handleVenueSelect = (venue: Venue) => {
         onVenueSelect?.(venue);
     };
+
+    // Filter venues based on selected category
+    const getVenuesForCategory = (category: string) => {
+        if (!venues || venues.length === 0) return [];
+
+        // Show all venues if 'all' is selected
+        if (category === 'all') {
+            return venues;
+        }
+
+        // If no categories are set, show all venues for now
+        if (venues.every(venue => !venue.categories || venue.categories.length === 0)) {
+            console.log('🔍 Debug - No categories found, showing all venues');
+            return venues;
+        }
+
+        const filtered = venues.filter(venue => {
+            if (category === 'restaurants') return venue.categories?.some(cat => cat === 'restaurant');
+            if (category === 'cafes') return venue.categories?.some(cat => cat === 'cafe');
+            if (category === 'bars') return venue.categories?.some(cat => cat === 'bar');
+            if (category === 'activities') return venue.categories?.some(cat => cat === 'activity');
+            return false;
+        });
+
+        console.log(`🔍 Debug - Filtered ${category}:`, filtered.length);
+        return filtered;
+    };
+
+    const filteredVenues = getVenuesForCategory(activeCategory);
+
+    // Validate and clean venue data before rendering
+    const validVenues = filteredVenues.filter(venue => {
+        if (!venue || typeof venue !== 'object') {
+            console.warn('🔍 Invalid venue object:', venue);
+            return false;
+        }
+
+        if (!venue.id || !venue.name) {
+            console.warn('🔍 Venue missing required fields:', venue);
+            return false;
+        }
+
+        if (typeof venue.name !== 'string') {
+            console.warn('🔍 Venue name is not a string:', venue.name);
+            return false;
+        }
+
+        return true;
+    });
+
+    console.log('🔍 Debug - activeCategory:', activeCategory);
+    console.log('🔍 Debug - filteredVenues:', filteredVenues.length);
+    console.log('🔍 Debug - validVenues:', validVenues.length);
 
     return (
         <View style={styles.container}>
@@ -170,10 +140,27 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.venuesListContent}
             >
-                <View style={styles.emptyState}>
-                    <Ionicons name="search-outline" size={48} color={colors.gray300} />
-                    <Text style={styles.emptyText}>Search for venues above to see suggestions</Text>
-                </View>
+                {validVenues.length > 0 ? (
+                    validVenues
+                        .map((venue) => (
+                            <VenueCard
+                                key={venue.id}
+                                venue={venue}
+                                onPress={() => handleVenueSelect(venue)}
+                                isSelected={selectedVenue?.id === venue.id}
+                            />
+                        ))
+                ) : venues.length > 0 ? (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="filter-outline" size={48} color={colors.gray300} />
+                        <Text style={styles.emptyText}>No {activeCategory} found in this area</Text>
+                    </View>
+                ) : (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="search-outline" size={48} color={colors.gray300} />
+                        <Text style={styles.emptyText}>Search for venues above to see suggestions</Text>
+                    </View>
+                )}
             </ScrollView>
         </View>
     );
@@ -181,8 +168,8 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
         backgroundColor: colors.white,
+        minHeight: 200, // Give it a minimum height instead of flex: 1
     },
     title: {
         fontSize: 20,
@@ -222,117 +209,13 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
     venuesList: {
-        flex: 1,
+        maxHeight: 400, // Set a max height instead of flex: 1
     },
     venuesListContent: {
         paddingHorizontal: 16,
         paddingBottom: 16,
     },
-    venueCard: {
-        flexDirection: 'row',
-        backgroundColor: colors.white,
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: colors.gray200,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    selectedVenueCard: {
-        borderColor: colors.primaryGreen,
-        backgroundColor: colors.gray50,
-    },
-    venueImageContainer: {
-        marginRight: 12,
-    },
-    venueImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 8,
-    },
-    placeholderImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 8,
-        backgroundColor: colors.gray100,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    venueInfo: {
-        flex: 1,
-        justifyContent: 'space-between',
-    },
-    venueName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.gray900,
-        marginBottom: 4,
-    },
-    venueMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    starsContainer: {
-        flexDirection: 'row',
-        marginRight: 4,
-    },
-    venueRating: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: colors.gray700,
-        marginRight: 4,
-    },
-    venueReviewCount: {
-        fontSize: 12,
-        color: colors.gray700,
-    },
-    venueDetails: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    venueCategory: {
-        fontSize: 12,
-        color: colors.gray700,
-        flex: 1,
-    },
-    venueDistance: {
-        fontSize: 12,
-        color: colors.gray700,
-        fontWeight: '500',
-    },
-    venueAddress: {
-        fontSize: 12,
-        color: colors.gray700,
-        marginBottom: 4,
-    },
-    venuePriceContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    venuePrice: {
-        fontSize: 12,
-        color: colors.gray700,
-        marginRight: 8,
-    },
-    closedText: {
-        fontSize: 12,
-        color: '#dc3545',
-        fontWeight: '500',
-    },
-    selectedIndicator: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-    },
     loadingContainer: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 40,
@@ -343,7 +226,6 @@ const styles = StyleSheet.create({
         color: colors.gray700,
     },
     errorContainer: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 40,
@@ -367,7 +249,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     emptyState: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 40,

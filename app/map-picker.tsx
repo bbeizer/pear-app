@@ -28,8 +28,56 @@ export default function MapPickerScreen() {
     setIsSearching(true);
     try {
       const res = await venueClient.getDateVenues(midpoint.latitude, midpoint.longitude, radius);
-      const all = [...res.restaurants, ...res.cafes, ...res.bars, ...res.activities].sort((a,b) => b.rating - a.rating);
-      setVenues(all);
+      const all = [...res.restaurants, ...res.cafes, ...res.bars, ...res.activities];
+
+      console.log('🔍 Raw venue data by category:', {
+        restaurants: res.restaurants.length,
+        cafes: res.cafes.length,
+        bars: res.bars.length,
+        activities: res.activities.length,
+        total: all.length
+      });
+
+      // Log some sample venues to see their structure
+      if (all.length > 0) {
+        console.log('🔍 Sample venue:', JSON.stringify(all[0], null, 2));
+      }
+
+      // Improved deduplication based on name + location
+      const uniqueVenues = all.filter((venue, index, self) => {
+        const venueKey = `${venue.name.toLowerCase().trim()}_${venue.location.latitude.toFixed(6)}_${venue.location.longitude.toFixed(6)}`;
+        const isDuplicate = self.findIndex(v => {
+          const vKey = `${v.name.toLowerCase().trim()}_${v.location.latitude.toFixed(6)}_${v.location.longitude.toFixed(6)}`;
+          return vKey === venueKey;
+        }) !== index;
+
+        if (isDuplicate) {
+          console.log('🔍 Duplicate found:', {
+            name: venue.name,
+            lat: venue.location.latitude,
+            lng: venue.location.longitude,
+            id: venue.id
+          });
+        }
+
+        return !isDuplicate;
+      });
+
+      // Sort by rating (highest first), then by distance
+      const sortedVenues = uniqueVenues.sort((a, b) => {
+        if (b.rating !== a.rating) {
+          return b.rating - a.rating;
+        }
+        return a.distance - b.distance;
+      });
+
+      console.log('🔍 Search results:', {
+        total: all.length,
+        unique: uniqueVenues.length,
+        sorted: sortedVenues.length
+      });
+
+      setVenues(sortedVenues);
     } finally {
       setIsSearching(false);
     }
@@ -52,10 +100,13 @@ export default function MapPickerScreen() {
     );
   }
 
+  console.log('🔍 Debug - venues in map picker:', venues);
+  console.log('🔍 Debug - venues length:', venues?.length);
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
           <Text style={styles.close}>✕</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Pick a place</Text>
@@ -92,8 +143,7 @@ export default function MapPickerScreen() {
 
       <View style={styles.results}>
         <VenueSuggestions
-          latitude={midpoint.latitude}
-          longitude={midpoint.longitude}
+          venues={venues}
           selectedVenue={selected}
           onVenueSelect={setSelected}
         />
@@ -104,6 +154,10 @@ export default function MapPickerScreen() {
           onPress={onConfirm}
         >
           <Text style={styles.confirmText}>{selected ? `Confirm ${selected.name}` : 'Select a venue'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+          <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -117,6 +171,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: '#eee'
   },
   title: { fontSize: 16, fontWeight: '600' },
+  closeBtn: { padding: 8, borderRadius: 20, backgroundColor: '#f5f5f5' },
   close: { fontSize: 22, color: '#777' },
   mapWrap: { flex: 1 },
   map: { flex: 1 },
@@ -127,6 +182,8 @@ const styles = StyleSheet.create({
   results: { padding: 12, borderTopWidth: 1, borderColor: '#eee' },
   confirmBtn: { marginTop: 12, backgroundColor: colors.primaryGreen, paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
   confirmText: { color: '#fff', fontWeight: '600' },
+  cancelBtn: { marginTop: 12, backgroundColor: '#eee', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
+  cancelText: { color: '#333', fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
   msg: { color: '#444', marginBottom: 12 },
   backBtn: { paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#aaa', borderRadius: 8 },
