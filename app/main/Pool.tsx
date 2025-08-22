@@ -20,7 +20,6 @@ import ProfileInfoCard from '../components/ProfileInfoCard';
 import PoolImageCard from '../components/PoolImageCard';
 import ActionButtons from '../components/ActionButtons';
 import DiscoveryFilters from '../components/DiscoveryFilters';
-import VenueSuggestionModal from '../components/VenueSuggestionModal';
 
 export default function Pool() {
     const { lightImpact, successNotification } = useHaptics();
@@ -46,14 +45,6 @@ export default function Pool() {
             const currentProfile = pool.profiles[pool.currentIndex];
             venueHandler.handleMatch(currentProfile);
         }
-    };
-
-    const handleVenueAccept = async (venue: any) => {
-        await venueHandler.handleVenueAccept(venue, pool.handleVenueAction);
-    };
-
-    const handleVenueSuggest = async (venue: any) => {
-        await venueHandler.handleVenueSuggest(venue, pool.handleVenueAction);
     };
 
     const currentProfile = pool.profiles[pool.currentIndex];
@@ -141,19 +132,6 @@ export default function Pool() {
                     onApplyFilters={pool.applyDiscoveryFilters}
                     onClose={() => setShowDiscoverySettings(false)}
                     profileCount={pool.profiles.length}
-                />
-            )}
-
-            {/* Venue Suggestion Modal */}
-            {venueHandler.matchedProfile && pool.userProfile && (
-                <VenueSuggestionModal
-                    visible={venueHandler.showVenueModal}
-                    onClose={venueHandler.closeVenueModal}
-                    suggestedVenue={null} // No venue suggested yet
-                    midpoint={pool.calculateMidpoint(venueHandler.matchedProfile) || { latitude: 40.7128, longitude: -74.0060 }}
-                    onVenueAccept={handleVenueAccept}
-                    onVenueSuggest={handleVenueSuggest}
-                    matchName={venueHandler.matchedProfile.name}
                 />
             )}
         </View>

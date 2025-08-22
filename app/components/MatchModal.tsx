@@ -229,6 +229,71 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
         }
     };
 
+    const handleAcceptVenue = async () => {
+        if (!match) return;
+
+        try {
+            // Get the other person's proposed venue and set it as your proposed venue too
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData?.user) return;
+
+            const userId = userData.user.id;
+            const isUser1 = match.user1_id === userId;
+            const otherUserVenue = isUser1 ? match.user2_proposed_venue : match.user1_proposed_venue;
+            const updateField = isUser1 ? 'user1_proposed_venue' : 'user2_proposed_venue';
+
+            // Update match to venue agreed with both users having the same proposed venue
+            const { error } = await supabase
+                .from('matches')
+                .update({
+                    venue_agreed: true,
+                    agreed_venue: otherUserVenue,
+                    [updateField]: otherUserVenue
+                })
+                .eq('id', match.id);
+
+            if (error) {
+                console.error('Error accepting venue:', error);
+                return;
+            }
+
+            successNotification();
+            Alert.alert('Success', 'Venue confirmed! Both users agreed on the venue.');
+
+            await fetchMatchData();
+            onMatchUpdate();
+        } catch (error) {
+            console.error('Error accepting venue:', error);
+        }
+    };
+
+    const handleDeclineVenue = async () => {
+        if (!match) return;
+
+        try {
+            // Reset venue proposals when declining
+            const { error } = await supabase
+                .from('matches')
+                .update({
+                    venue_agreed: false,
+                    agreed_venue: null,
+                    user1_proposed_venue: null,
+                    user2_proposed_venue: null
+                })
+                .eq('id', match.id);
+
+            if (error) {
+                console.error('Error declining venue:', error);
+                return;
+            }
+
+            await fetchMatchData();
+            onMatchUpdate();
+        } catch (error) {
+            console.error('Error declining venue:', error);
+        }
+    };
+
     if (!match) return null;
 
     console.log('🍐 [MatchModal] Current match status:', match.status, 'user1_time:', match.user1_proposed_time, 'user2_time:', match.user2_proposed_time);
@@ -311,7 +376,7 @@ export default function MatchModal({ visible, match, onClose, onMatchUpdate }: M
                     {/* Venue Suggestions for In-Person Meetings */}
                     {match.meeting_type === 'in-person' && profile?.latitude && profile?.longitude && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Venue Suggestions</Text>
+                            <Text style={styles.sectionTitle}>Venues</Text>
                             <View style={styles.venueSuggestionsContainer}>
                                 <VenueSuggestions
                                     latitude={profile.latitude}

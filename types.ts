@@ -60,7 +60,7 @@ export interface Match {
   suggested_venue?: string;
   user1_proposed_time?: string;
   user2_proposed_time?: string;
-  // Venue details
+  // Venue details (legacy)
   venue_name?: string;
   venue_address?: string;
   venue_latitude?: number;
@@ -71,6 +71,11 @@ export interface Match {
   venue_distance_meters?: number;
   venue_suggested_by?: string;
   venue_suggested_at?: string;
+  // New venue proposal fields
+  user1_proposed_venue?: any; // JSONB venue object
+  user2_proposed_venue?: any; // JSONB venue object
+  venue_agreed?: boolean;
+  agreed_venue?: any; // JSONB venue object
   created_at: string;
   updated_at: string;
   other_user_profile: Profile;

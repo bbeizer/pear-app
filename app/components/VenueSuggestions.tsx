@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { venueClient } from '../../lib/venueClient';
@@ -14,6 +15,7 @@ import { colors } from '../../theme/colors';
 import type { Venue } from '../../lib/venueClient';
 import { formatDistanceInMiles } from '../../utils/locationUtils';
 import VenueCard from './VenueCard';
+import { supabase } from '../../lib/supabaseClient';
 
 interface VenueSuggestionsProps {
     venues?: Venue[];
@@ -21,6 +23,9 @@ interface VenueSuggestionsProps {
     selectedVenue?: Venue | null;
     latitude?: number;
     longitude?: number;
+    minHeight?: number;
+    matchId?: string; // Add matchId prop
+    onVenueUpdate?: () => void; // Add refresh callback
 }
 
 const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
@@ -29,7 +34,12 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
     selectedVenue,
     latitude,
     longitude,
+    minHeight = 400,
+    matchId,
+    onVenueUpdate,
 }) => {
+    const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+
     console.log('🔍 Debug - VenueSuggestions received venues:', venues);
     console.log('🔍 Debug - VenueSuggestions venues length:', venues?.length);
     console.log('🔍 Debug - VenueSuggestions coordinates:', { latitude, longitude });
@@ -37,6 +47,14 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
     const [activeCategory, setActiveCategory] = useState<'all' | 'restaurants' | 'cafes' | 'bars' | 'activities'>('all');
     const [localVenues, setLocalVenues] = useState<Venue[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Responsive calculations
+    const isTablet = screenWidth > 768;
+    const isSmallPhone = screenHeight < 700;
+
+    const buttonHeight = isTablet ? 48 : isSmallPhone ? 32 : 40;
+    const buttonPadding = isTablet ? 12 : isSmallPhone ? 6 : 8;
+    const fontSize = isTablet ? 16 : isSmallPhone ? 12 : 14;
 
     // Use provided venues or fetch based on coordinates
     const effectiveVenues = venues || localVenues;
@@ -92,6 +110,60 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
 
     const handleVenueSelect = (venue: Venue) => {
         onVenueSelect?.(venue);
+
+        // If we have a matchId, update the database
+        if (matchId) {
+            updateMatchWithVenue(venue);
+        }
+    };
+
+    const updateMatchWithVenue = async (venue: Venue) => {
+        if (!matchId) return;
+
+        try {
+            // Get current user to determine which field to update
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData?.user) {
+                console.error('No authenticated user found');
+                return;
+            }
+
+            // Get the match to determine if user is user1 or user2
+            const { data: matchData, error: matchError } = await supabase
+                .from('matches')
+                .select('user1_id, user2_id')
+                .eq('id', matchId)
+                .single();
+
+            if (matchError || !matchData) {
+                console.error('Error fetching match:', matchError);
+                return;
+            }
+
+            const userId = userData.user.id;
+            const isUser1 = matchData.user1_id === userId;
+            const venueField = isUser1 ? 'user1_proposed_venue' : 'user2_proposed_venue';
+
+            // Update the match with the venue proposal
+            const { error: updateError } = await supabase
+                .from('matches')
+                .update({
+                    [venueField]: venue,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', matchId);
+
+            if (updateError) {
+                console.error('Error updating match with venue:', updateError);
+                Alert.alert('Error', 'Failed to save venue suggestion');
+            } else {
+                console.log('✅ Venue suggestion saved to database');
+                onVenueUpdate?.(); // Call the refresh callback
+            }
+        } catch (error) {
+            console.error('Error updating match with venue:', error);
+            Alert.alert('Error', 'Failed to save venue suggestion');
+        }
     };
 
     // Filter venues based on selected category
@@ -125,37 +197,40 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
     console.log('🔍 Debug - effectiveVenues:', effectiveVenues.length);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { minHeight }]}>
             {/* Category Filter */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryFilter}
-                contentContainerStyle={styles.categoryFilterContent}
-            >
-                {categories.map((category) => (
-                    <TouchableOpacity
-                        key={category.key}
-                        style={[
-                            styles.categoryButton,
-                            activeCategory === category.key && styles.categoryButtonActive
-                        ]}
-                        onPress={() => setActiveCategory(category.key)}
-                    >
-                        <Ionicons
-                            name={category.icon as any}
-                            size={16}
-                            color={activeCategory === category.key ? '#fff' : colors.gray600}
-                        />
-                        <Text style={[
-                            styles.categoryButtonText,
-                            activeCategory === category.key && styles.categoryButtonTextActive
-                        ]}>
-                            {category.label}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <View style={[styles.categoryFilter, { height: buttonHeight + 8 }]}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryFilterContent}
+                >
+                    {categories.map((category) => (
+                        <TouchableOpacity
+                            key={category.key}
+                            style={[
+                                styles.categoryButton,
+                                activeCategory === category.key && styles.categoryButtonActive,
+                                { height: buttonHeight, paddingHorizontal: buttonPadding }
+                            ]}
+                            onPress={() => setActiveCategory(category.key)}
+                        >
+                            <Ionicons
+                                name={category.icon as any}
+                                size={isTablet ? 20 : isSmallPhone ? 14 : 16}
+                                color={activeCategory === category.key ? '#fff' : colors.gray600}
+                            />
+                            <Text style={[
+                                styles.categoryButtonText,
+                                activeCategory === category.key && styles.categoryButtonTextActive,
+                                { fontSize }
+                            ]}>
+                                {category.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
             {/* Loading State */}
             {isLoading && (
@@ -201,8 +276,6 @@ const VenueSuggestions: React.FC<VenueSuggestionsProps> = ({
 const styles = StyleSheet.create({
     container: {
         backgroundColor: colors.white,
-        minHeight: 400,
-        flex: 1,
     },
     categoryFilter: {
         marginBottom: 8,

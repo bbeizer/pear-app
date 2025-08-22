@@ -1,62 +1,38 @@
-
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useHaptics } from '../../lib/hooks/useHaptics';
 import { useMatches } from '../../lib/hooks/useMatches';
-import { useVenuePicker } from '../../lib/stores/venuePicker';
-import MatchModal from '../components/MatchModal';
 import MatchCard from '../components/MatchCard';
-import VenueSuggestionModal from '../components/VenueSuggestionModal';
+import VenuePickerModal from '../components/VenuePickerModal';
 import { colors } from '../../theme/colors';
+import { useRouter } from 'expo-router';
 
 export default function MatchesScreen() {
     const { lightImpact } = useHaptics();
     const matches = useMatches();
-    const { activeMatchId, selectedVenue, confirmedVenue, clear } = useVenuePicker();
-
-    // Listen for confirmed venue from the store
-    useEffect(() => {
-        if (selectedVenue && activeMatchId && matches.selectedMatch?.id === activeMatchId) {
-            matches.handleVenueSuggest(selectedVenue);
-            clear();
-        }
-    }, [selectedVenue, activeMatchId, matches.selectedMatch?.id, matches.handleVenueSuggest, clear]);
-
-    // Listen for confirmed venue from map-picker
-    useEffect(() => {
-        console.log('🔍 Matches: confirmedVenue changed:', confirmedVenue);
-        if (confirmedVenue && confirmedVenue.matchId) {
-            console.log('🔍 Matches: Found confirmed venue for match:', confirmedVenue.matchId);
-            // Find the match that was updated
-            const matchToUpdate = matches.matches.find(match => match.id === confirmedVenue.matchId);
-            if (matchToUpdate) {
-                console.log('🔍 Matches: Found match to update:', matchToUpdate.id);
-                // Set this as the selected match
-                matches.handleMatchPress(matchToUpdate);
-                // Automatically save the venue to the database
-                console.log('🔍 Matches: Automatically saving venue:', confirmedVenue.venue.name);
-                // Save the venue and then show the modal
-                matches.handleVenueSuggest(confirmedVenue.venue).then(() => {
-                    // Show the venue modal immediately after saving
-                    matches.handleVenuePress(matchToUpdate);
-                });
-                // Clear the confirmed venue
-                clear();
-            } else {
-                console.log('🔍 Matches: No match found for ID:', confirmedVenue.matchId);
-            }
-        }
-    }, [confirmedVenue, matches.matches, matches.handleMatchPress, matches.handleVenueSuggest, matches.handleVenuePress, clear]);
+    const router = useRouter();
+    const [showVenuePicker, setShowVenuePicker] = useState(false);
+    const [venuePickerMatchId, setVenuePickerMatchId] = useState<string | null>(null);
+    const [venuePickerMidpoint, setVenuePickerMidpoint] = useState<{ latitude: number; longitude: number } | null>(null);
 
     const handleMatchPress = (match: any) => {
         lightImpact();
-        matches.handleMatchPress(match);
+        // Navigate to specific match details
+        router.push(`/MatchDetails/${match.id}`);
     };
 
     const handleVenuePress = (match: any) => {
         lightImpact();
-        matches.handleVenuePress(match);
+        // Calculate midpoint for this specific match
+        const midpoint = matches.calculateMidpoint(match);
+        if (midpoint) {
+            setVenuePickerMatchId(match.id);
+            setVenuePickerMidpoint(midpoint);
+            setShowVenuePicker(true);
+        } else {
+            console.error('No midpoint found for match:', match.id);
+        }
     };
 
     const renderMatch = ({ item }: { item: any }) => (
@@ -106,28 +82,17 @@ export default function MatchesScreen() {
                 />
             )}
 
-            {/* Match Modal */}
-            {matches.selectedMatch && (
-                <MatchModal
-                    match={matches.selectedMatch}
-                    visible={matches.modalVisible}
-                    onClose={matches.handleCloseModal}
-                    onMatchUpdate={matches.handleMatchUpdate}
-                />
-            )}
-
-            {/* Venue Suggestion Modal */}
-            {matches.selectedMatch && (
-                <VenueSuggestionModal
-                    visible={matches.venueModalVisible}
-                    onClose={matches.handleCloseVenueModal}
-                    midpoint={matches.calculateMidpoint(matches.selectedMatch)}
-                    onVenueAccept={matches.handleVenueAccept}
-                    onVenueSuggest={matches.handleVenueSuggest}
-                    matchName={matches.selectedMatch.other_user_profile?.name || 'Your Match'}
-                    matchId={matches.selectedMatch.id}
-                    currentUserId={matches.currentUserId || ''}
-                    match={matches.selectedMatch}
+            {/* Venue Picker Modal */}
+            {venuePickerMatchId && venuePickerMidpoint && (
+                <VenuePickerModal
+                    visible={showVenuePicker}
+                    onClose={() => {
+                        setShowVenuePicker(false);
+                        setVenuePickerMatchId(null);
+                        setVenuePickerMidpoint(null);
+                    }}
+                    matchId={venuePickerMatchId}
+                    midpoint={venuePickerMidpoint}
                 />
             )}
         </View>
@@ -137,14 +102,14 @@ export default function MatchesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#fff',
     },
     header: {
-        padding: 20,
-        paddingTop: 60,
-        backgroundColor: '#fff',
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
+        borderBottomColor: '#f0f0f0',
     },
     title: {
         fontSize: 28,
@@ -157,21 +122,21 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     loadingText: {
-        fontSize: 18,
         textAlign: 'center',
-        marginTop: 200,
+        marginTop: 50,
+        fontSize: 16,
         color: '#666',
     },
     emptyState: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 40,
+        paddingHorizontal: 40,
     },
     emptyTitle: {
         fontSize: 24,
         fontWeight: '600',
-        color: '#1A1A1A',
+        color: '#333',
         marginTop: 16,
         marginBottom: 8,
     },
@@ -182,7 +147,6 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     listContainer: {
-        paddingTop: 20,
         paddingBottom: 20,
     },
-}); 
+});

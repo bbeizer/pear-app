@@ -98,6 +98,39 @@ export default function MatchCard({ match, onPress, onVenuePress }: MatchCardPro
                     </Text>
                 )}
 
+                {/* Venue Suggestions */}
+                {(match.user1_proposed_venue || match.user2_proposed_venue) && (
+                    <View style={styles.venueSuggestions}>
+                        {match.venue_agreed && match.agreed_venue ? (
+                            <View style={styles.agreedVenue}>
+                                <Ionicons name="checkmark-circle" size={16} color={colors.primaryGreen} />
+                                <Text style={styles.agreedVenueText}>
+                                    Venue confirmed: {match.agreed_venue.name}
+                                </Text>
+                            </View>
+                        ) : (
+                            <>
+                                {match.user1_proposed_venue && (
+                                    <View style={styles.venueProposal}>
+                                        <Ionicons name="location" size={14} color="#007AFF" />
+                                        <Text style={styles.venueProposalText}>
+                                            {match.user1_name || 'User 1'} suggested: {match.user1_proposed_venue.name}
+                                        </Text>
+                                    </View>
+                                )}
+                                {match.user2_proposed_venue && (
+                                    <View style={styles.venueProposal}>
+                                        <Ionicons name="location" size={14} color="#007AFF" />
+                                        <Text style={styles.venueProposalText}>
+                                            {match.user2_name || 'User 2'} suggested: {match.user2_proposed_venue.name}
+                                        </Text>
+                                    </View>
+                                )}
+                            </>
+                        )}
+                    </View>
+                )}
+
                 {/* Match Date */}
                 <Text style={styles.matchDate}>
                     Matched {new Date(match.created_at).toLocaleDateString()}
@@ -175,6 +208,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         color: '#1A1A1A',
+        marginRight: 12,
     },
     statusBadge: {
         paddingHorizontal: 8,
@@ -235,5 +269,36 @@ const styles = StyleSheet.create({
     },
     actionArrow: {
         justifyContent: 'center',
+    },
+    venueSuggestions: {
+        marginTop: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        backgroundColor: '#f0f9ff',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    agreedVenue: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    agreedVenueText: {
+        fontSize: 12,
+        color: colors.primaryGreen,
+        fontWeight: '600',
+        marginLeft: 4,
+    },
+    venueProposal: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    venueProposalText: {
+        fontSize: 12,
+        color: '#007AFF',
+        fontWeight: '600',
+        marginLeft: 4,
     },
 }); 
