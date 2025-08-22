@@ -7,49 +7,48 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useVenuePicker } from '../../lib/stores/venuePicker';
+import { useVenueSuggestion } from '../../lib/hooks/useVenueSuggestion';
 import type { Venue } from '../../lib/venueClient';
 
 interface VenueSuggestionModalProps {
     visible: boolean;
     onClose: () => void;
-    suggestedVenue?: Venue | null;
     midpoint: { latitude: number; longitude: number };
     onVenueAccept: (venue: Venue) => void;
     onVenueSuggest: (venue: Venue) => void;
     matchName: string;
-    matchId: string; // NEW
+    matchId: string;
+    currentUserId: string; // Add current user ID
+    match: any; // Add full match object to access user1_id/user2_id
 }
 
 export default function VenueSuggestionModal({
     visible,
     onClose,
-    suggestedVenue,
     midpoint,
     onVenueAccept,
     onVenueSuggest,
     matchName,
     matchId,
+    currentUserId,
+    match,
 }: VenueSuggestionModalProps) {
     const router = useRouter();
     const { beginVenuePick } = useVenuePicker();
     const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
+    // Use the hook for all venue logic
+    const venueLogic = useVenueSuggestion(matchId, currentUserId, match);
+
     const addDebugLog = (message: string) => {
         const timestamp = new Date().toLocaleTimeString();
         setDebugLogs(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
-    };
-
-    const handleAcceptVenue = () => {
-        addDebugLog('Accept venue called');
-        if (suggestedVenue) {
-            onVenueAccept(suggestedVenue);
-            onClose();
-        }
     };
 
     const handleSuggestDifferentVenue = () => {
@@ -60,10 +59,31 @@ export default function VenueSuggestionModal({
         router.push('/map-picker');
     };
 
+    const handleAcceptVenue = async () => {
+        if (venueLogic.otherUserVenue) {
+            const success = await venueLogic.acceptVenueSuggestion(venueLogic.otherUserVenue);
+            if (success) {
+                onClose();
+                // Parent should handle refresh
+            }
+        }
+    };
+
     // Debug logs
     console.log('🔴 VenueSuggestionModal render:', {
         visible,
-        hasSelectedVenue: !!suggestedVenue
+        hasSelectedVenue: !!match?.[venueLogic.venueField],
+        currentUserId,
+        isUser1: venueLogic.isUser1,
+        venueField: venueLogic.venueField,
+        otherUserVenue: !!venueLogic.otherUserVenue,
+        venueState: venueLogic.venueState,
+        venueData: match?.[venueLogic.venueField] ? {
+            name: match[venueLogic.venueField].name,
+            address: match[venueLogic.venueField].location?.address,
+            rating: match[venueLogic.venueField].rating,
+            categories: match[venueLogic.venueField].categories
+        } : null
     });
 
     const formatDistance = (meters: number) => {
@@ -102,68 +122,125 @@ export default function VenueSuggestionModal({
                     </View>
 
                     <View style={styles.content}>
-                        {suggestedVenue ? (
+                        {/* Show agreed venue if both users agreed */}
+                        {venueLogic.venueState === 'agreed' && match?.agreed_venue ? (
                             <>
-                                <Text style={styles.sectionTitle}>Suggested Venue</Text>
-
+                                <Text style={styles.sectionTitle}>Agreed Venue 🎉</Text>
                                 <View style={styles.venueCard}>
                                     <View style={styles.venueHeader}>
-                                        <Text style={styles.venueName}>{suggestedVenue.name}</Text>
+                                        <Text style={styles.venueName}>{match.agreed_venue.name}</Text>
                                         <View style={styles.venueRating}>
-                                            {renderStars(suggestedVenue.rating)}
-                                            <Text style={styles.ratingText}>{suggestedVenue.rating}</Text>
+                                            {renderStars(match.agreed_venue.rating)}
+                                            <Text style={styles.ratingText}>{match.agreed_venue.rating}</Text>
                                         </View>
                                     </View>
-
                                     <Text style={styles.venueCategory}>
-                                        {suggestedVenue.categories.join(', ')}
+                                        {match.agreed_venue.categories?.join(', ')}
                                     </Text>
-
                                     <Text style={styles.venueAddress}>
-                                        {suggestedVenue.location.address}
+                                        {match.agreed_venue.location?.address}
                                     </Text>
-
                                     <View style={styles.venueMeta}>
                                         <Text style={styles.venueDistance}>
-                                            {formatDistance(suggestedVenue.distance)}
-                                        </Text>
-                                        <Text style={styles.venuePrice}>
-                                            {'$'.repeat(suggestedVenue.priceLevel)}
+                                            {formatDistance(match.agreed_venue.distance)}
                                         </Text>
                                     </View>
                                 </View>
-
-                                <View style={styles.buttonContainer}>
-                                    <TouchableOpacity
-                                        style={styles.acceptButton}
-                                        onPress={handleAcceptVenue}
-                                    >
-                                        <Ionicons name="checkmark" size={20} color="#fff" />
-                                        <Text style={styles.acceptButtonText}>Accept This Venue</Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={styles.suggestButton}
-                                        onPress={handleSuggestDifferentVenue}
-                                    >
-                                        <Ionicons name="location" size={20} color={colors.primaryGreen} />
-                                        <Text style={styles.suggestButtonText}>Suggest Different Place</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <Text style={styles.agreedText}>You both agreed on this venue!</Text>
                             </>
                         ) : (
                             <>
-                                <Text style={styles.sectionTitle}>No venue suggested yet</Text>
-                                <Text style={styles.noVenueText}>
-                                    Be the first to suggest a great place to meet!
-                                </Text>
+                                {/* Show your current suggestion */}
+                                {match?.[venueLogic.venueField] && (
+                                    <>
+                                        <Text style={styles.sectionTitle}>Your Suggestion</Text>
+                                        <View style={styles.venueCard}>
+                                            <View style={styles.venueHeader}>
+                                                <Text style={styles.venueName}>{match[venueLogic.venueField].name}</Text>
+                                                <View style={styles.venueRating}>
+                                                    {renderStars(match[venueLogic.venueField].rating)}
+                                                    <Text style={styles.ratingText}>{match[venueLogic.venueField].rating}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.venueCategory}>
+                                                {match[venueLogic.venueField].categories?.join(', ')}
+                                            </Text>
+                                            <Text style={styles.venueAddress}>
+                                                {match[venueLogic.venueField].location?.address}
+                                            </Text>
+                                            <View style={styles.venueMeta}>
+                                                <Text style={styles.venueDistance}>
+                                                    {formatDistance(match[venueLogic.venueField].distance)}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </>
+                                )}
 
+                                {/* Show their suggestion if they have one */}
+                                {venueLogic.otherUserVenue && (
+                                    <>
+                                        <Text style={styles.sectionTitle}>Their Suggestion</Text>
+                                        <View style={styles.venueCard}>
+                                            <View style={styles.venueHeader}>
+                                                <Text style={styles.venueName}>{venueLogic.otherUserVenue.name}</Text>
+                                                <View style={styles.venueRating}>
+                                                    {renderStars(venueLogic.otherUserVenue.rating)}
+                                                    <Text style={styles.ratingText}>{venueLogic.otherUserVenue.rating}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.venueCategory}>
+                                                {venueLogic.otherUserVenue.categories?.join(', ')}
+                                            </Text>
+                                            <Text style={styles.venueAddress}>
+                                                {venueLogic.otherUserVenue.location?.address}
+                                            </Text>
+                                            <View style={styles.venueMeta}>
+                                                <Text style={styles.venueDistance}>
+                                                    {formatDistance(venueLogic.otherUserVenue.distance)}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.buttonContainer}>
+                                            <TouchableOpacity
+                                                style={[styles.acceptButton, venueLogic.isLoading && { opacity: 0.6 }]}
+                                                onPress={handleAcceptVenue}
+                                                disabled={venueLogic.isLoading}
+                                            >
+                                                {venueLogic.isLoading ? (
+                                                    <ActivityIndicator color="#fff" size="small" />
+                                                ) : (
+                                                    <>
+                                                        <Ionicons name="checkmark" size={20} color="#fff" />
+                                                        <Text style={styles.acceptButtonText}>Accept Their Venue</Text>
+                                                    </>
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                    </>
+                                )}
+
+                                {/* Show suggest button if no venue suggested yet */}
+                                {!match?.[venueLogic.venueField] && !venueLogic.otherUserVenue && (
+                                    <>
+                                        <Text style={styles.sectionTitle}>No venue suggested yet</Text>
+                                        <Text style={styles.noVenueText}>
+                                            Be the first to suggest a great place to meet!
+                                        </Text>
+                                    </>
+                                )}
+
+                                {/* Always show suggest/edit button */}
                                 <TouchableOpacity
-                                    style={styles.suggestButton}
+                                    style={[styles.suggestButton, venueLogic.isLoading && { opacity: 0.6 }]}
                                     onPress={handleSuggestDifferentVenue}
+                                    disabled={venueLogic.isLoading}
                                 >
                                     <Ionicons name="location" size={20} color={colors.primaryGreen} />
-                                    <Text style={styles.suggestButtonText}>Suggest a Place</Text>
+                                    <Text style={styles.suggestButtonText}>
+                                        {match?.[venueLogic.venueField] ? 'Edit Your Suggestion' : 'Suggest a Place'}
+                                    </Text>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -174,7 +251,9 @@ export default function VenueSuggestionModal({
             {/* Debug Logs Display */}
             <View style={styles.debugContainer}>
                 <Text style={styles.debugTitle}>🐛 Debug Logs:</Text>
-                <Text style={styles.debugText}>suggestedVenue: {suggestedVenue ? suggestedVenue.name : 'null'}</Text>
+                <Text style={styles.debugText}>Venue State: {venueLogic.venueState}</Text>
+                <Text style={styles.debugText}>Your Venue: {match?.[venueLogic.venueField] ? match[venueLogic.venueField].name : 'null'}</Text>
+                <Text style={styles.debugText}>Their Venue: {venueLogic.otherUserVenue ? venueLogic.otherUserVenue.name : 'null'}</Text>
                 {debugLogs.map((log, index) => (
                     <Text key={index} style={styles.debugLog}>{log}</Text>
                 ))}
@@ -186,7 +265,8 @@ export default function VenueSuggestionModal({
 const styles = StyleSheet.create({
     modalContainer: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: colors.red,
+        paddingBottom: 100,
     },
     header: {
         paddingHorizontal: 16,
@@ -194,7 +274,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#fafafa',
+        backgroundColor: colors.red,
         borderBottomWidth: 1,
         borderColor: '#ddd',
     },
@@ -348,5 +428,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#555',
         marginBottom: 1,
+    },
+    agreedText: {
+        fontSize: 16,
+        color: '#333',
+        marginTop: 16,
+        textAlign: 'center',
     },
 }); 

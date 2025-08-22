@@ -96,11 +96,12 @@ export function useMatches() {
         if (!selectedMatch || !currentUserId) return;
 
         try {
-            const venueData = transformVenueForDatabase(venue, currentUserId);
+            // When accepting a venue, set venue_agreed = true and store in agreed_venue
             const { error } = await supabase
                 .from('matches')
                 .update({
-                    ...venueData,
+                    venue_agreed: true,
+                    agreed_venue: venue,
                     status: 'proposed'
                 })
                 .eq('id', selectedMatch.id);
@@ -123,11 +124,14 @@ export function useMatches() {
         if (!selectedMatch || !currentUserId) return;
 
         try {
-            const venueData = transformVenueForDatabase(venue, currentUserId);
+            // Determine which user is making the suggestion
+            const isUser1 = currentUserId === selectedMatch.user1_id;
+            const venueField = isUser1 ? 'user1_proposed_venue' : 'user2_proposed_venue';
+            
             const { error } = await supabase
                 .from('matches')
                 .update({
-                    ...venueData,
+                    [venueField]: venue,
                     status: 'proposed'
                 })
                 .eq('id', selectedMatch.id);
@@ -172,8 +176,5 @@ export function useMatches() {
         handleVenueSuggest,
         fetchMatches,
         calculateMidpoint,
-        
-        // Computed values
-        suggestedVenue: selectedMatch ? transformVenueFromMatch(selectedMatch) : null,
     };
 } 

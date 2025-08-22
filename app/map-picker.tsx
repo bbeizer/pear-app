@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Alert } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import Slider from '@react-native-community/slider';
 import { router } from 'expo-router';
@@ -8,9 +8,10 @@ import { venueClient } from '../lib/venueClient';
 import VenueSuggestions from './components/VenueSuggestions';
 import type { Venue } from '../lib/venueClient';
 import { useVenuePicker } from '../lib/stores/venuePicker';
+import { supabase } from '../lib/supabaseClient';
 
 export default function MapPickerScreen() {
-  const { midpoint, confirmVenue } = useVenuePicker();
+  const { midpoint, confirmVenue, activeMatchId } = useVenuePicker();
   const [radius, setRadius] = useState(1000);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -83,10 +84,64 @@ export default function MapPickerScreen() {
     }
   };
 
-  const onConfirm = () => {
-    if (!selected) return;
-    confirmVenue(selected);
-    router.back();
+  const onConfirm = async () => {
+    if (!selected || !activeMatchId) return;
+
+    console.log('🔍 Map-picker: Confirming venue:', selected.name, 'for match:', activeMatchId);
+
+    try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+
+      // Get the match to determine which user is making the suggestion
+      const { data: match, error: matchError } = await supabase
+        .from('matches')
+        .select('user1_id, user2_id')
+        .eq('id', activeMatchId)
+        .single();
+
+      if (matchError || !match) {
+        console.error('Error fetching match:', matchError);
+        Alert.alert('Error', 'Failed to fetch match information');
+        return;
+      }
+
+      // Determine which user is making the suggestion
+      const isUser1 = user.id === match.user1_id;
+      const venueField = isUser1 ? 'user1_proposed_venue' : 'user2_proposed_venue';
+
+      console.log('🔍 Saving venue to field:', venueField);
+
+      // Save the venue suggestion to the match
+      const { error: updateError } = await supabase
+        .from('matches')
+        .update({
+          [venueField]: selected,
+          status: 'proposed'
+        })
+        .eq('id', activeMatchId);
+
+      if (updateError) {
+        console.error('Error saving venue suggestion:', updateError);
+        Alert.alert('Error', 'Failed to save venue suggestion. Please try again.');
+        return;
+      }
+
+      console.log('✅ Venue suggestion saved successfully');
+      Alert.alert('Success', 'Venue suggestion saved! Your match will be notified.');
+
+      // Update the store and route back
+      confirmVenue(selected, activeMatchId);
+      router.push('/main/Matches');
+
+    } catch (error) {
+      console.error('Error in onConfirm:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
   };
 
   if (!midpoint) {
@@ -167,23 +222,23 @@ export default function MapPickerScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
   header: {
-    height: 52, paddingHorizontal: 12, flexDirection: 'row',
+    height: 70, paddingHorizontal: 12, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: '#eee'
   },
   title: { fontSize: 16, fontWeight: '600' },
   closeBtn: { padding: 8, borderRadius: 20, backgroundColor: '#f5f5f5' },
   close: { fontSize: 22, color: '#777' },
-  mapWrap: { flex: 1 },
+  mapWrap: { height: '32%', marginTop: 0 },
   map: { flex: 1 },
-  controls: { padding: 12, gap: 12, borderTopWidth: 1, borderColor: '#eee' },
-  label: { fontSize: 13, color: '#333' },
-  searchBtn: { backgroundColor: colors.primaryGreen, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  searchText: { color: '#fff', fontWeight: '600' },
-  results: { padding: 12, borderTopWidth: 1, borderColor: '#eee' },
-  confirmBtn: { marginTop: 12, backgroundColor: colors.primaryGreen, paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-  confirmText: { color: '#fff', fontWeight: '600' },
-  cancelBtn: { marginTop: 12, backgroundColor: '#eee', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-  cancelText: { color: '#333', fontWeight: '600' },
+  controls: { padding: 4, gap: 4, borderTopWidth: 1, borderColor: '#eee' },
+  label: { fontSize: 12, color: '#333' },
+  searchBtn: { backgroundColor: colors.primaryGreen, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
+  searchText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  results: { padding: 4, borderTopWidth: 1, borderColor: '#eee', flex: 1, marginTop: 10, paddingBottom: 20, minHeight: '60%' },
+  confirmBtn: { marginTop: 4, backgroundColor: colors.primaryGreen, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
+  confirmText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  cancelBtn: { marginTop: 4, backgroundColor: '#eee', paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
+  cancelText: { color: '#333', fontWeight: '600', fontSize: 13 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
   msg: { color: '#444', marginBottom: 12 },
   backBtn: { paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#aaa', borderRadius: 8 },

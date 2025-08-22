@@ -13,7 +13,7 @@ import { colors } from '../../theme/colors';
 export default function MatchesScreen() {
     const { lightImpact } = useHaptics();
     const matches = useMatches();
-    const { activeMatchId, selectedVenue, clear } = useVenuePicker();
+    const { activeMatchId, selectedVenue, confirmedVenue, clear } = useVenuePicker();
 
     // Listen for confirmed venue from the store
     useEffect(() => {
@@ -22,6 +22,32 @@ export default function MatchesScreen() {
             clear();
         }
     }, [selectedVenue, activeMatchId, matches.selectedMatch?.id, matches.handleVenueSuggest, clear]);
+
+    // Listen for confirmed venue from map-picker
+    useEffect(() => {
+        console.log('🔍 Matches: confirmedVenue changed:', confirmedVenue);
+        if (confirmedVenue && confirmedVenue.matchId) {
+            console.log('🔍 Matches: Found confirmed venue for match:', confirmedVenue.matchId);
+            // Find the match that was updated
+            const matchToUpdate = matches.matches.find(match => match.id === confirmedVenue.matchId);
+            if (matchToUpdate) {
+                console.log('🔍 Matches: Found match to update:', matchToUpdate.id);
+                // Set this as the selected match
+                matches.handleMatchPress(matchToUpdate);
+                // Automatically save the venue to the database
+                console.log('🔍 Matches: Automatically saving venue:', confirmedVenue.venue.name);
+                // Save the venue and then show the modal
+                matches.handleVenueSuggest(confirmedVenue.venue).then(() => {
+                    // Show the venue modal immediately after saving
+                    matches.handleVenuePress(matchToUpdate);
+                });
+                // Clear the confirmed venue
+                clear();
+            } else {
+                console.log('🔍 Matches: No match found for ID:', confirmedVenue.matchId);
+            }
+        }
+    }, [confirmedVenue, matches.matches, matches.handleMatchPress, matches.handleVenueSuggest, matches.handleVenuePress, clear]);
 
     const handleMatchPress = (match: any) => {
         lightImpact();
@@ -95,12 +121,13 @@ export default function MatchesScreen() {
                 <VenueSuggestionModal
                     visible={matches.venueModalVisible}
                     onClose={matches.handleCloseVenueModal}
-                    suggestedVenue={matches.suggestedVenue}
                     midpoint={matches.calculateMidpoint(matches.selectedMatch)}
                     onVenueAccept={matches.handleVenueAccept}
                     onVenueSuggest={matches.handleVenueSuggest}
                     matchName={matches.selectedMatch.other_user_profile?.name || 'Your Match'}
                     matchId={matches.selectedMatch.id}
+                    currentUserId={matches.currentUserId || ''}
+                    match={matches.selectedMatch}
                 />
             )}
         </View>
