@@ -24,29 +24,14 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => 
         setImageError(true);
     };
 
-    // Ensure all text fields are strings to prevent rendering issues
-    const safeName = typeof venue.name === 'string' ? venue.name : 'Unknown Venue';
-    const safeAddress = typeof venue.location?.address === 'string' ? venue.location.address : 'Address not available';
-    const safeCategory = venue.categories && venue.categories.length > 0
-        ? venue.categories.join(', ')
-        : '';
-
-    // Additional validation to prevent undefined/null values
-    const safeRating = typeof venue.rating === 'number' && !isNaN(venue.rating) ? venue.rating : 0;
-    const safeReviewCount = typeof venue.reviewCount === 'number' && !isNaN(venue.reviewCount) && venue.reviewCount > 0 ? venue.reviewCount : 0;
-    const safePriceLevel = typeof venue.priceLevel === 'number' && venue.priceLevel >= 1 && venue.priceLevel <= 4 ? venue.priceLevel : 1;
-    const safeDistance = typeof venue.distance === 'number' && !isNaN(venue.distance) ? venue.distance : 0;
-
-    console.log('🔍 VenueCard rendering:', {
-        id: venue.id,
-        name: safeName,
-        address: safeAddress,
-        categories: venue.categories,
-        rating: safeRating,
-        reviewCount: safeReviewCount,
-        priceLevel: safePriceLevel,
-        distance: safeDistance
-    });
+    // Ensure all text values are properly handled
+    const venueName = venue?.name || 'Unknown Venue';
+    const venueAddress = venue?.location?.address || 'Address not available';
+    const venueCategories = venue?.categories || [];
+    const venueRating = venue?.rating || 0;
+    const venueReviewCount = venue?.reviewCount || 0;
+    const venuePriceLevel = venue?.priceLevel || 0;
+    const venueDistance = venue?.distance || 0;
 
     return (
         <TouchableOpacity
@@ -55,7 +40,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => 
             activeOpacity={0.7}
         >
             <View style={styles.imageContainer}>
-                {venue.imageUrl && !imageError ? (
+                {venue?.imageUrl && !imageError ? (
                     <Image
                         source={{ uri: venue.imageUrl }}
                         style={styles.image}
@@ -71,39 +56,44 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue, onPress, isSelected }) => 
 
             <View style={styles.content}>
                 <Text style={styles.name} numberOfLines={2}>
-                    {safeName}
+                    {venueName}
                 </Text>
 
                 <View style={styles.ratingContainer}>
                     <View style={styles.stars}>
                         {[1, 2, 3, 4, 5].map((star) => {
-                            if (star <= safeRating) {
+                            if (star <= venueRating) {
                                 return <Ionicons key={star} name="star" size={12} color="#FFD700" />;
-                            } else if (star === Math.ceil(safeRating) && safeRating % 1 !== 0) {
+                            } else if (star === Math.ceil(venueRating) && venueRating % 1 !== 0) {
                                 return <Ionicons key={star} name="star-half" size={12} color="#FFD700" />;
                             } else {
                                 return <Ionicons key={star} name="star-outline" size={12} color="#FFD700" />;
                             }
                         })}
                     </View>
-                    <Text style={styles.rating}>{safeRating.toFixed(1)}</Text>
+                    {venueReviewCount > 0 && (
+                        <Text style={styles.reviewCount}>
+                            ({venueReviewCount})
+                        </Text>
+                    )}
                 </View>
 
-                {safeCategory && (
+                {venueCategories.length > 0 && (
                     <Text style={styles.category} numberOfLines={1}>
-                        {safeCategory}
+                        {venueCategories.join(', ')}
                     </Text>
                 )}
 
-                {safeAddress !== 'Address not available' && (
-                    <Text style={styles.address} numberOfLines={1}>
-                        {safeAddress}
-                    </Text>
-                )}
+                <Text style={styles.address} numberOfLines={1}>
+                    {venueAddress}
+                </Text>
 
                 <View style={styles.bottomRow}>
+                    <Text style={styles.priceLevel}>
+                        {'$'.repeat(venuePriceLevel)}
+                    </Text>
                     <Text style={styles.distance}>
-                        {formatDistanceInMiles(venue.distance)}
+                        {formatDistanceInMiles(venueDistance)}
                     </Text>
                 </View>
             </View>
@@ -171,10 +161,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginRight: 4,
     },
-    rating: {
+    reviewCount: {
         fontSize: 12,
         color: colors.gray700,
-        marginLeft: 4,
     },
     category: {
         fontSize: 12,
@@ -190,6 +179,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+    },
+    priceLevel: {
+        fontSize: 12,
+        color: colors.gray700,
     },
     distance: {
         fontSize: 12,

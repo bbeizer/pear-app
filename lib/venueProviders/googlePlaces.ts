@@ -63,7 +63,7 @@ export class GooglePlacesProvider implements VenueProvider {
             headers: {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': this.apiKey,
-                'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.primaryTypeDisplayName,places.location,places.rating,places.userRatingCount,places.photos,places.priceLevel,places.types,places.nationalPhoneNumber,places.websiteUri'
+                'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.primaryTypeDisplayName,places.location,places.rating,places.userRatingCount,places.photos'
             },
             body: JSON.stringify(requestBody)
         });
@@ -73,8 +73,6 @@ export class GooglePlacesProvider implements VenueProvider {
         if (!response.ok) {
             throw new Error(`Google Places API error: ${data.error?.message || response.statusText}`);
         }
-
-        console.log('🔍 Google Places API response:', JSON.stringify(data, null, 2));
 
         const venues = data.places?.map((place: any) => this.transformGooglePlace(place, params.latitude, params.longitude)) || [];
 
@@ -124,13 +122,6 @@ export class GooglePlacesProvider implements VenueProvider {
     }
 
     private async transformGooglePlace(place: any, userLat: number, userLng: number): Promise<Venue> {
-        console.log('🔍 Raw place data:', JSON.stringify(place, null, 2));
-        console.log('🔍 Address fields:', {
-            formattedAddress: place.formattedAddress,
-            displayName: place.displayName,
-            location: place.location
-        });
-        
         // Calculate distance
         const distance = this.calculateDistance(
             userLat, userLng,
@@ -148,64 +139,24 @@ export class GooglePlacesProvider implements VenueProvider {
             imageUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${this.apiKey}`;
         }
 
-        // Generate a unique ID using place ID and coordinates
-        const uniqueId = `${place.id}_${place.location.latitude.toFixed(6)}_${place.location.longitude.toFixed(6)}`;
-
-        // Safely extract price level - Google uses 0-4, we need 1-4
-        let priceLevel: 1 | 2 | 3 | 4 = 1;
-        if (place.priceLevel !== undefined && place.priceLevel !== null) {
-            const level = Number(place.priceLevel);
-            if (level >= 0 && level <= 4) {
-                // Google uses 0-4, convert to 1-4 (0 = free, 1 = $, 2 = $$, etc.)
-                priceLevel = (level === 0 ? 1 : level) as 1 | 2 | 3 | 4;
-            }
-        }
-
-        // Extract address - try multiple possible fields
-        let address = 'Address not available';
-        if (place.formattedAddress) {
-            address = place.formattedAddress;
-        } else if (place.displayName && place.displayName.text) {
-            // Use the display name as a fallback if no formatted address
-            address = place.displayName.text;
-        }
-
-        // If we still don't have an address, construct one from coordinates
-        if (address === 'Address not available') {
-            // Use a simple coordinate-based address for Kendall Square area
-            const lat = place.location.latitude.toFixed(4);
-            const lng = place.location.longitude.toFixed(4);
-            address = `Near ${lat}, ${lng}`;
-        }
-
-        // Ensure we have valid text values to prevent rendering errors
-        const name = place.displayName?.text || place.name || 'Unknown Venue';
-        const rating = typeof place.rating === 'number' && !isNaN(place.rating) ? place.rating : 0;
-        const reviewCount = typeof place.userRatingCount === 'number' && !isNaN(place.userRatingCount) ? place.userRatingCount : 0;
-
-        const transformedVenue = {
-            id: uniqueId,
-            name: name,
-            rating: rating,
-            priceLevel: priceLevel,
+        return {
+            id: place.id,
+            name: place.displayName?.text || 'Unknown',
+            rating: place.rating || 0,
+            priceLevel: (place.priceLevel as any) || 1,
             categories: this.mapGoogleTypesToCategories(place.types || []),
             location: {
-                address: address,
-                city: 'Cambridge', // Default city for Kendall Square area
-                state: 'MA', // Default state for Massachusetts
+                address: place.location.address || '',
+                city: '', // Would need additional API call for detailed address
+                state: '', // Would need additional API call for detailed address
                 latitude: place.location.latitude,
                 longitude: place.location.longitude,
             },
             distance,
             imageUrl,
-            openNow: place.openingHours?.openNow || false,
-            reviewCount: reviewCount,
+            openNow: place.openingHours?.openNow,
+            reviewCount: 0, // Not available in new API without additional call
         };
-
-        console.log('🔍 Transformed venue:', JSON.stringify(transformedVenue, null, 2));
-        console.log('🔍 Final transformed venue:', JSON.stringify(transformedVenue, null, 2));
-
-        return transformedVenue;
     }
 
     private mapGoogleTypesToCategories(types: string[]): VenueCategory[] {

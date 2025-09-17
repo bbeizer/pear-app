@@ -141,7 +141,7 @@ export default function MatchDetailScreen() {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                    <TouchableOpacity style={styles.backButton} onPress={() => router.push('/main/Matches')}>
                         <Ionicons name="arrow-back" size={24} color={colors.primaryGreen} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Match Details</Text>
@@ -169,7 +169,7 @@ export default function MatchDetailScreen() {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                    <TouchableOpacity style={styles.backButton} onPress={() => router.push('/main/Matches')}>
                         <Ionicons name="arrow-back" size={24} color={colors.primaryGreen} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Match Details</Text>
@@ -186,7 +186,7 @@ export default function MatchDetailScreen() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.push('/main/Matches')}>
                     <Ionicons name="arrow-back" size={24} color={colors.primaryGreen} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Match Details</Text>
