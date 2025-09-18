@@ -11,13 +11,65 @@ interface CalendarMatch extends Match {
     partnerName: string;
 }
 
+interface GroupedDates {
+    [dateKey: string]: CalendarMatch[];
+}
+
 export default function CalendarScreen() {
     const [dates, setDates] = useState<CalendarMatch[]>([]);
+    const [groupedDates, setGroupedDates] = useState<GroupedDates>({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchConfirmedDates();
     }, []);
+
+    const formatDateKey = (timeString: string) => {
+        // Convert "Tomorrow_7:00_PM" to "Tomorrow"
+        // Convert "Dec_15_2024_7:00_PM" to "Dec 15, 2024"
+        return timeString.split('_')[0];
+    };
+
+    const formatDateHeader = (timeString: string) => {
+        const parts = timeString.split('_');
+        if (parts[0] === 'Tomorrow') {
+            return 'Tomorrow';
+        } else if (parts[0] === 'Today') {
+            return 'Today';
+        } else if (parts.length >= 3) {
+            // Format as "Dec 15, 2024" or similar
+            const month = parts[0];
+            const day = parts[1];
+            const year = parts[2] || new Date().getFullYear();
+            return `${month} ${day}, ${year}`;
+        }
+        return timeString.replace(/_/g, ' ');
+    };
+
+    const groupDatesByDay = (dates: CalendarMatch[]) => {
+        const grouped: GroupedDates = {};
+
+        dates.forEach(match => {
+            const timeString = match.user1_proposed_time || match.user2_proposed_time || '';
+            const dateKey = formatDateKey(timeString);
+
+            if (!grouped[dateKey]) {
+                grouped[dateKey] = [];
+            }
+            grouped[dateKey].push(match);
+        });
+
+        // Sort dates within each group by time
+        Object.keys(grouped).forEach(dateKey => {
+            grouped[dateKey].sort((a, b) => {
+                const timeA = a.user1_proposed_time || a.user2_proposed_time || '';
+                const timeB = b.user1_proposed_time || b.user2_proposed_time || '';
+                return timeA.localeCompare(timeB);
+            });
+        });
+
+        return grouped;
+    };
 
     const fetchConfirmedDates = async () => {
         try {
@@ -48,6 +100,7 @@ export default function CalendarScreen() {
             );
 
             setDates(confirmedDates);
+            setGroupedDates(groupDatesByDay(confirmedDates));
         } catch (error) {
             console.error('Error fetching confirmed dates:', error);
             Alert.alert('Error', 'Failed to load your dates. Please try again.');
@@ -91,9 +144,24 @@ export default function CalendarScreen() {
                     contentContainerStyle={styles.scrollContainer}
                     showsVerticalScrollIndicator={false}
                 >
-                    {dates.map((match) => (
-                        <DateCard key={match.id} match={match} />
-                    ))}
+                    {Object.keys(groupedDates).map((dateKey) => {
+                        const dateMatches = groupedDates[dateKey];
+                        const firstMatch = dateMatches[0];
+                        const timeString = firstMatch.user1_proposed_time || firstMatch.user2_proposed_time || '';
+                        const dateHeader = formatDateHeader(timeString);
+
+                        return (
+                            <View key={dateKey} style={styles.dateSection}>
+                                {/* Date Header in Black Font */}
+                                <Text style={styles.dateHeader}>{dateHeader}</Text>
+
+                                {/* Date Cards for this day */}
+                                {dateMatches.map((match) => (
+                                    <DateCard key={match.id} match={match} />
+                                ))}
+                            </View>
+                        );
+                    })}
                 </ScrollView>
             )}
         </View>
@@ -155,5 +223,15 @@ const styles = StyleSheet.create({
     scrollContainer: {
         padding: 20,
         paddingBottom: 40,
+    },
+    dateSection: {
+        marginBottom: 24,
+    },
+    dateHeader: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#000',
+        marginBottom: 12,
+        marginTop: 8,
     },
 });
